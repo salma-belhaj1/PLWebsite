@@ -8,7 +8,7 @@ export default {
     extend: {
       colors: {
         'pl-pink': '#ee7aaa',
-        'pl-red': '#ff0000',
+        'pl-red': '#FF1744',
         'pl-black': '#000000',
         'pl-white': '#ffffff',
       },

@@ -1,8 +1,20 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+import toast from 'react-hot-toast'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { session, isAdmin, signOut } = useAuth()
+
+  async function handleSignOut() {
+    try {
+      await signOut()
+      toast.success('Signed out')
+    } catch (error) {
+      toast.error('Sign out failed')
+    }
+  }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-pl-black to-pl-black/95 backdrop-blur-md shadow-xl slide-in-down">
@@ -39,15 +51,17 @@ export default function Header() {
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-pl-pink to-pl-red group-hover:w-full smooth-transition"></span>
             </Link>
           </li>
-          <li>
-            <Link 
-              to="/admin" 
-              className="text-pl-white font-century smooth-transition hover:text-pl-pink relative group"
-            >
-              Admin
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-pl-pink to-pl-red group-hover:w-full smooth-transition"></span>
-            </Link>
-          </li>
+          {isAdmin && (
+            <li>
+              <Link
+                to="/admin"
+                className="text-pl-white font-century smooth-transition hover:text-pl-pink relative group"
+              >
+                Admin
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-pl-pink to-pl-red group-hover:w-full smooth-transition"></span>
+              </Link>
+            </li>
+          )}
           <li>
             <a 
               href="https://www.instagram.com/peace.love.tn/" 
@@ -61,14 +75,26 @@ export default function Header() {
           </li>
         </ul>
 
-        {/* Cart Button */}
-        <button className="relative group hidden md:block">
-          <div className="bg-gradient-to-r from-pl-pink to-pl-red text-pl-white px-6 py-2 rounded-full font-stayvibes smooth-transition hover:shadow-lg hover:scale-105 flex items-center gap-2">
-            🛒
-            <span>(0)</span>
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-pl-pink to-pl-red rounded-full blur opacity-0 group-hover:opacity-50 smooth-transition -z-10"></div>
-        </button>
+        {/* Auth & Cart */}
+        <div className="flex items-center gap-4">
+          {session ? (
+            <button
+              onClick={handleSignOut}
+              className="hidden md:block text-pl-white font-century smooth-transition hover:text-pl-pink relative group"
+            >
+              Sign Out
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-pl-pink to-pl-red group-hover:w-full smooth-transition"></span>
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="hidden md:block text-pl-white font-century smooth-transition hover:text-pl-pink relative group"
+            >
+              Sign In
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-pl-pink to-pl-red group-hover:w-full smooth-transition"></span>
+            </Link>
+          )}
+        </div>
 
         {/* Mobile Menu Toggle */}
         <button 
@@ -101,15 +127,40 @@ export default function Header() {
                 Shop
               </Link>
             </li>
-            <li>
-              <Link 
-                to="/admin" 
-                className="text-pl-white hover:text-pl-pink smooth-transition block py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Admin
-              </Link>
-            </li>
+            {isAdmin && (
+              <li>
+                <Link
+                  to="/admin"
+                  className="text-pl-white hover:text-pl-pink smooth-transition block py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Admin
+                </Link>
+              </li>
+            )}
+            {session ? (
+              <li>
+                <button
+                  onClick={() => {
+                    handleSignOut()
+                    setIsMenuOpen(false)
+                  }}
+                  className="text-pl-white hover:text-pl-pink smooth-transition block py-2 w-full text-left"
+                >
+                  Sign Out
+                </button>
+              </li>
+            ) : (
+              <li>
+                <Link
+                  to="/login"
+                  className="text-pl-white hover:text-pl-pink smooth-transition block py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sign In
+                </Link>
+              </li>
+            )}
             <li>
               <a 
                 href="https://www.instagram.com/peace.love.tn/" 
