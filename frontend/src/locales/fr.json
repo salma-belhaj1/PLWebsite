@@ -1,0 +1,153 @@
+{
+  "home": "Accueil",
+  "shop": "Boutique",
+  "admin": "Admin",
+  "instagram": "Instagram",
+  "signIn": "Se connecter",
+  "signOut": "Se déconnecter",
+  "toggleTheme": "Changer le thème",
+  "language": "Langue",
+  "hero": {
+    "welcome": "Bienvenue dans la nouvelle ère de tranquillité",
+    "tagline": "Découvrez la sérénité à chaque instant",
+    "description": "Des produits soigneusement sélectionnés pour apporter paix, amour et beauté dans votre vie ✨",
+    "cta": {
+      "explore": "Découvrir la collection",
+      "learn": "En savoir plus"
+    }
+  },
+  "brand": {
+    "name": "Peace & Love"
+  },
+  "values": {
+    "title": "Nos Valeurs",
+    "peace": {
+      "title": "Paix",
+      "desc": "Retrouvez votre paix intérieure grâce à notre collection de produits réfléchis conçus pour apaiser votre esprit."
+    },
+    "love": {
+      "title": "Amour",
+      "desc": "Diffusez l'amour avec des cadeaux attentionnés et significatifs qui touchent le cœur et nourrissent les liens."
+    },
+    "quality": {
+      "title": "Qualité",
+      "desc": "Des produits haut de gamme fabriqués avec soin, passion et une attention méticuleuse à chaque détail."
+    }
+  },
+  "featured": {
+    "title": "Collection en Vedette",
+    "subtitle": "Articles sélectionnés pour apporter paix et amour dans votre vie",
+    "cta": {
+      "exploreAll": "Découvrir toute la collection"
+    }
+  },
+  "product": {
+    "priceLabel": "Prix",
+    "add": "Ajouter au panier",
+    "addedToBag": "Ajouté au panier ✨",
+    "viewDetails": "Voir les détails",
+    "category": "Catégorie",
+    "description": "Description",
+    "details": "Détails",
+    "reviews": "Avis",
+    "currency": "TND"
+  },
+  "newsletter": {
+    "title": "🕊️ Rejoignez notre communauté",
+    "subtitle": "Abonnez-vous pour recevoir des nouvelles des arrivages, offres spéciales et histoires inspirantes de notre famille Peace & Love",
+    "placeholder": "Entrez votre adresse e-mail...",
+    "submit": "S'abonner ✨",
+    "privacy": "Nous respectons votre vie privée. Se désabonner à tout moment."
+  },
+  "announcement": {
+    "welcome": "Bienvenue — Peace & Love : des cadeaux pour partager calme, tendresse et connexion.",
+    "free_shipping": "Livraison gratuite sur les commandes de plus de 100 TND",
+    "sale": "Nouvelle collection vient d'arriver ! ✨",
+    "peace": "Chaque achat apporte la paix à vous et au monde 🕊️"
+  },
+  "search": {
+    "placeholder": "Recherchez vêtements, bougies, cristaux..."
+  },
+  "shopPage": {
+    "title": "Notre Collection",
+    "description": "Découvrez notre collection soigneusement sélectionnée de paix, d'amour et de beauté. Chaque produit est choisi avec soin et conçu avec intention.",
+    "filter": {
+      "all": "👁️ Toute la collection"
+    },
+    "empty": {
+      "title": "Rien trouvé ici",
+      "description": "Nous n'avons trouvé aucun produit dans cette catégorie pour le moment. Réessayez une autre catégorie ! ✌️",
+      "back": "Retour à la collection"
+    }
+  },
+  "filter": {
+    "inStock": "En stock uniquement",
+    "outOfStock": "Rupture",
+    "reset": "Réinitialiser les filtres",
+    "apply": "Appliquer les filtres"
+  },
+  "sort": {
+    "by": "Trier par",
+    "featured": "Vedette",
+    "priceLowHigh": "Prix : bas → haut",
+    "priceHighLow": "Prix : haut → bas",
+    "rating": "Les mieux notés",
+    "newest": "Plus récent"
+  },
+  "inStockFirst": "En stock d'abord",
+  "stock": {
+    "inStock": "En stock",
+    "outOfStock": "Rupture",
+    "limited": "Stock limité"
+  },
+  "cart": {
+    "bag": "Sac",
+    "title": "Panier",
+    "empty": "Votre panier est vide",
+    "remove": "Supprimer",
+    "subtotal": "Sous-total",
+    "shipping": "Livraison (8 TND)",
+    "total": "Total",
+    "returnToShop": "Retour au magasin",
+    "checkout": "Passer à la caisse",
+    "quantity": "Quantité",
+    "price": "Prix"
+  },
+  "checkout": {
+    "details": "Informations de livraison",
+    "fullName": "Nom complet",
+    "email": "Adresse e-mail",
+    "address": "Adresse",
+    "city": "Ville",
+    "zip": "Code postal",
+    "phone": "Numéro de téléphone",
+    "cancel": "Retour au panier",
+    "processing": "Traitement...",
+    "placeOrder": "Finaliser l'achat",
+    "success": "Commande confirmée",
+    "thanks": "Merci pour votre achat. Un e-mail de confirmation a été envoyé.",
+    "continue": "Continuer les achats",
+    "error": "Échec de la commande. Veuillez réessayer.",
+    "orderNumber": "Commande #",
+    "summary": "Résumé de la commande",
+    "currency": "TND"
+  },
+  "errors": {
+    "loadProducts": "Impossible de charger les produits. Veuillez réessayer."
+  },
+  "footer": {
+    "description": "Diffuser la paix, l'amour et la positivité grâce à de beaux produits conçus avec intention. Chaque article est un rappel de vivre en pleine conscience et d'aimer profondément.",
+    "quickLinks": "Liens rapides",
+    "links": {
+      "contact": "Contact"
+    },
+    "contact": {
+      "title": "Entrer en contact",
+      "emailLabel": "Email",
+      "phoneLabel": "Téléphone",
+      "instagramLabel": "Instagram"
+    },
+    "copyright": "© 2026 Peace & Love. Tous droits réservés. | Fait avec ❤️ et ✨",
+    "tagline": "Diffuser la paix, l'amour et de belles choses dans le monde 🕊️"
+  }
+}

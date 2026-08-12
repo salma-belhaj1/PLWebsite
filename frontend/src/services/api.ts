@@ -1,25 +1,35 @@
-import axios from 'axios';
+// ========================================
+// SERVICE LAYER (Updated)
+// Now uses Supabase instead of Express backend
+// ========================================
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+import * as productsService from './supabase/products';
+import * as authService from './supabase/auth';
+import * as cartService from './supabase/cart';
+import * as ordersService from './supabase/orders';
+import * as expensesService from './supabase/expenses';
+import * as inventoryService from './supabase/inventory';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-});
-
+// Legacy interfaces for backward compatibility
 export interface ProductVariant {
-  variant_type: string;
-  variant_value: string;
+  id?: number;
+  variant_type?: string;
+  variant_value?: string;
   stock_quantity: number;
+  created_at?: string;
 }
 
 export interface Product {
   id: number;
   name: string;
-  description: string;
-  price: string | number;
+  description: string | null;
+  price: number;
+  cost_price?: number;
+  profit?: number;
   status: string;
-  category: string;
+  category_id?: number;
+  category?: string | { id: number; name: string } | null;
+  image_url?: string | null;
   variants: ProductVariant[];
   created_at: string;
 }
@@ -27,44 +37,144 @@ export interface Product {
 export interface Category {
   id: number;
   name: string;
-  description?: string;
+  description?: string | null;
 }
 
+// ==========================================
+// PRODUCTS SERVICE
+// ==========================================
 export const productService = {
-  // Get all products with optional filtering
-  getAllProducts: async (category?: string, limit = 20, offset = 0) => {
+  getAllProducts: async (
+    options?: {
+      categoryId?: number;
+      q?: string;
+      sort?: string;
+      inStock?: boolean;
+      limit?: number;
+      offset?: number;
+    }
+  ) => {
     try {
-      const response = await api.get('/products', {
-        params: { category, limit, offset },
+      const products = await productsService.getProducts({
+        categoryId: options?.categoryId,
+        search: options?.q,
+        featured: false,
       });
-      return response.data;
+
+      return { data: products };
     } catch (error) {
       console.error('Error fetching products:', error);
       throw error;
     }
   },
 
-  // Get product by ID
-  getProductById: async (id: number) => {
+  getProduct: async (id: number) => {
     try {
-      const response = await api.get(`/products/${id}`);
-      return response.data;
+      return await productsService.getProduct(id);
     } catch (error) {
       console.error('Error fetching product:', error);
       throw error;
     }
   },
 
-  // Get all categories
+  getFeaturedProducts: async (limit?: number) => {
+    try {
+      const products = await productsService.getFeaturedProducts(limit || 6);
+      return { data: products };
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      throw error;
+    }
+  },
+
   getCategories: async () => {
     try {
-      const response = await api.get('/products/categories');
-      return response.data;
+      const categories = await productsService.getCategories();
+      return { data: categories };
     } catch (error) {
       console.error('Error fetching categories:', error);
       throw error;
     }
   },
+
+  getProductsByCategory: async (categoryId: number) => {
+    try {
+      const products = await productsService.getProductsByCategory(categoryId);
+      return { data: products };
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
+  },
+
+  createProduct: async (product: any) => {
+    try {
+      return await productsService.createProduct(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
+  },
+
+  updateProduct: async (id: number, updates: any) => {
+    try {
+      return await productsService.updateProduct(id, updates);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      throw error;
+    }
+  },
+
+  deleteProduct: async (id: number) => {
+    try {
+      return await productsService.deleteProduct(id);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw error;
+    }
+  },
 };
 
-export default api;
+// ==========================================
+// ORDERS SERVICE
+// ==========================================
+export const orderService = {
+  placeOrder: async (payload: any) => {
+    try {
+      return await ordersService.createOrder(payload);
+    } catch (error) {
+      console.error('Error placing order:', error);
+      throw error;
+    }
+  },
+
+  getOrder: async (orderId: number) => {
+    try {
+      return await ordersService.getOrder(orderId);
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      throw error;
+    }
+  },
+
+  getUserOrders: async (userId: string) => {
+    try {
+      return await ordersService.getUserOrders(userId);
+    } catch (error) {
+      console.error('Error fetching user orders:', error);
+      throw error;
+    }
+  },
+};
+
+// ==========================================
+// Export all services for direct use
+// ==========================================
+export {
+  authService,
+  cartService,
+  ordersService,
+  expensesService,
+  inventoryService,
+  productsService,
+};

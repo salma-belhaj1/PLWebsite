@@ -1,0 +1,6 @@
+name,description,price,sku,stock_quantity,image_url
+Classic T-Shirt,Premium cotton t-shirt available in multiple colors,29.99,SHIRT-001,50,https://example.com/images/shirt.jpg
+Hoodie,Warm fleece-lined hoodie perfect for winter,49.99,HOOD-001,30,https://example.com/images/hoodie.jpg
+Baseball Cap,Adjustable cotton baseball cap,19.99,CAP-001,75,https://example.com/images/cap.jpg
+Denim Jeans,Classic blue denim jeans slim fit,59.99,JEANS-001,25,https://example.com/images/jeans.jpg
+Satin Pillow Case,Luxury satin pillow case for hair care,15.99,SATIN-001,100,https://example.com/images/satin.jpg

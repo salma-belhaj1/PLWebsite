@@ -1,14 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signIn, session, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Redirect after successful login when user profile is loaded
+  useEffect(() => {
+    if (session && user) {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get('redirect');
+      
+      if (redirect) {
+        navigate(decodeURIComponent(redirect));
+      } else {
+        // Redirect based on user role
+        if (user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/shop');
+        }
+      }
+    }
+  }, [session, user, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,7 +36,7 @@ export default function Login() {
     try {
       await signIn(email, password);
       toast.success('Welcome back!');
-      navigate('/admin');
+      // Redirect will be handled by useEffect above when user profile loads
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Login failed');
     } finally {
@@ -32,7 +51,7 @@ export default function Login() {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-pl-red mb-2">❤️</h1>
             <h2 className="text-2xl font-bold text-pl-black">Peace & Love</h2>
-            <p className="text-gray-600 mt-1">Admin Portal</p>
+            <p className="text-gray-600 mt-1">Welcome Back</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -80,7 +99,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-gray-500 text-xs mt-6">
-          Only admins can access this area. Contact support for access.
+          Sign in to access your account. Admins will be redirected to the dashboard.
         </p>
       </div>
     </div>

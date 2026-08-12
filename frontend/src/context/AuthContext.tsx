@@ -20,6 +20,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  function resolveRole(userSession: Session['user']): 'admin' | 'customer' {
+    const metadataRole = userSession?.app_metadata?.role || userSession?.user_metadata?.role;
+
+    return metadataRole === 'admin' ? 'admin' : 'customer';
+  }
+
+  async function loadOrCreateProfile(sessionUser: Session['user']) {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', sessionUser.id)
+      .single();
+
+    if (!profileError && profile) {
+      setUser(profile);
+      return profile;
+    }
+
+    const profileData = {
+      id: sessionUser.id,
+      email: sessionUser.email,
+      full_name: sessionUser.user_metadata?.full_name || '',
+      role: resolveRole(sessionUser),
+    };
+
+    await supabase.from('profiles').insert(profileData);
+    setUser(profileData as any);
+    return profileData;
+  }
+
   useEffect(() => {
     let mounted = true;
 
@@ -34,16 +64,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event: string, session: Session | null) => {
       if (mounted) {
         setSession(session);
         if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          setUser(profile);
+          try {
+            await loadOrCreateProfile(session.user);
+          } catch (err) {
+            console.warn('Profile fetch failed', err);
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              full_name: session.user.user_metadata?.full_name || '',
+              role: resolveRole(session.user),
+            } as any);
+          }
+          
+          // Cart sync is disabled for now - needs update for new cart_items schema
+          // TODO: Implement cart sync with new cart_items table structure
         } else {
           setUser(null);
         }
@@ -59,12 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session?.user) {
       (async () => {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setUser(profile);
+        try {
+          await loadOrCreateProfile(session.user);
+        } catch (err) {
+          console.warn('Profile setup failed', err);
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || '',
+            role: resolveRole(session.user),
+          } as any);
+        }
         setIsLoading(false);
       })();
     } else {
@@ -84,6 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('profiles').insert([
         {
           id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || '',
           role: 'customer',
         },
       ]);

@@ -47,6 +47,15 @@ src/
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
+- `npm test` - Run Vitest once the test dependencies are installed
+
+## Store Features
+
+- Top announcement ribbon and search in the header
+- Shop filters for sorting, stock status, and search query syncing
+- Persistent cart with a drawer and checkout modal
+- Checkout posts orders to the backend and expects inventory to be decremented atomically on order creation
+- Shipping is fixed at 8 TND and prices are displayed in TND
 
 ## Environment Variables
 

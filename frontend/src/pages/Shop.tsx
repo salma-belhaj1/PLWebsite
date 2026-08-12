@@ -1,29 +1,54 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { productService, Product } from '@/services/api'
+import { productService, Product } from '../services/api'
+import { useCart } from '../context/CartContext'
+import { useTheme } from '../context/ThemeContext'
+import { useTranslation } from 'react-i18next'
 
 export default function Shop() {
+  const { t } = useTranslation()
+  const { theme } = useTheme()
+  const { addToCart } = useCart()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [categories, setCategories] = useState<string[]>([])
+  const location = useLocation()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<string>('featured')
+  const [filterByStock, setFilterByStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('all')
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        const data = await productService.getAllProducts()
-        const products = data.data as Product[]; // Explicitly cast to Product[]
+        const options: any = {
+          category: selectedCategory === 'all' ? undefined : selectedCategory,
+          q: searchQuery || undefined,
+          sort: sortBy === 'featured' ? undefined : sortBy,
+          limit: 100,
+        }
+        const data = await productService.getAllProducts(options)
+        const products = (data && data.data) ? (data.data as Product[]) : []
         setProducts(products || [])
-        
-        // Extract unique categories
-        const cats = ['all', ...new Set(products.map((p) => p.category))]; // Ensure string[]
+
+        // Extract category names (handling both string and object formats)
+        const categoryNames = products
+          .map((p) => {
+            if (typeof p.category === 'string') return p.category
+            if (p.category && typeof p.category === 'object' && 'name' in p.category) return (p.category as any).name
+            return null
+          })
+          .filter(Boolean) as string[]
+        const cats = ['all', ...new Set(categoryNames)]
         setCategories(cats)
         setError(null)
       } catch (err) {
-        setError('Failed to load products. Please try again.')
+        setError(t('errors.loadProducts'))
         console.error('Error:', err)
       } finally {
         setLoading(false)
@@ -31,153 +56,317 @@ export default function Shop() {
     }
 
     fetchProducts()
-  }, [])
+  }, [selectedCategory, searchQuery, sortBy])
 
-  const filteredProducts = selectedCategory === 'all' 
-    ? products 
-    : products.filter(p => p.category === selectedCategory)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const q = params.get('q') || ''
+    setSearchQuery(q)
+  }, [location.search])
+
+  const getProductStock = (product: Product) => {
+    return (product.variants && product.variants.reduce((s, v) => s + (v.stock_quantity || 0), 0)) || 0
+  }
+
+  const isProductInStock = (product: Product) => {
+    return getProductStock(product) > 0 || product.status !== 'out_of_stock'
+  }
+
+  const getCategoryName = (category: any): string => {
+    if (typeof category === 'string') return category
+    if (category && typeof category === 'object' && 'name' in category) return category.name
+    return ''
+  }
+
+  const filteredProducts = products
+    .filter(p => selectedCategory === 'all' || getCategoryName(p.category) === selectedCategory)
+    .filter(p => {
+      if (!searchQuery) return true
+      const q = searchQuery.toLowerCase()
+      return (
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
+        (getCategoryName(p.category) && getCategoryName(p.category).toLowerCase().includes(q))
+      )
+    })
+    .filter(p => {
+      if (filterByStock === 'in-stock') return isProductInStock(p)
+      if (filterByStock === 'out-of-stock') return !isProductInStock(p)
+      return true
+    })
+    // Apply client-side sorting
+    .sort((a, b) => {
+      if (sortBy === 'priceLowHigh') return Number(a.price) - Number(b.price)
+      if (sortBy === 'priceHighLow') return Number(b.price) - Number(a.price)
+      if (sortBy === 'rating') return (b as any).rating - (a as any).rating
+      if (sortBy === 'newest') return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      return 0
+    })
 
   return (
-    <div className="min-h-screen bg-pl-white pt-24">
+    <div className={`min-h-screen pt-28 lg:pt-32 ${theme === 'dark' ? 'dark bg-zinc-950' : 'bg-white'}`}>
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-12">
         {/* Page Header */}
         <div className="text-center mb-12 slide-in-up">
-          <h1 className="text-6xl font-stayvibes text-pl-pink mb-4 slide-in-up hover:scale-105 smooth-transition cursor-default">✨ Our Collection ✨</h1>
-          <p className="text-lg text-pl-black/70 font-century max-w-2xl mx-auto">
-            Discover our carefully curated collection of peace, love, and beauty. Each product is selected with care and crafted with intention.
+          <h1 className={`text-6xl font-stayvibes mb-4 slide-in-up hover:scale-105 smooth-transition cursor-default ${theme === 'dark' ? 'text-pl-pink' : 'text-pl-pink'}`}>✨ {t('shopPage.title')} ✨</h1>
+          <p className={`text-lg font-century max-w-2xl mx-auto ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>
+            {t('shopPage.description')}
           </p>
           <div className="h-1.5 w-32 bg-gradient-to-r from-pl-pink to-pl-red mx-auto mt-6 rounded-full shadow-sm"></div>
         </div>
 
-        {/* Category Filter */}
+        {/* Category Filter - Modern Horizontal Scroll */}
         {categories.length > 1 && (
-          <div className="flex flex-wrap gap-4 justify-center mb-16 slide-in-up">
-            {categories.map(cat => (
-              <button
+          <motion.div 
+            className="flex flex-wrap gap-3 justify-center mb-10 slide-in-up"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {categories.map((cat, idx) => (
+              <motion.button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-8 py-3 rounded-full font-century smooth-transition capitalize text-sm tracking-wide
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+                className={`px-6 py-2.5 rounded-full font-century smooth-transition capitalize text-sm tracking-wide border-2 font-medium
                   ${selectedCategory === cat
-                    ? 'bg-gradient-to-r from-pl-pink to-pl-red text-pl-white shadow-[0_4px_15px_rgba(238,122,170,0.4)] scale-105'
-                    : 'bg-pl-white border border-pl-pink/30 text-pl-pink hover:bg-pl-pink/5 hover:border-pl-pink hover:scale-105 hover:shadow-md'
+                    ? `bg-gradient-to-r from-pl-pink to-pl-red text-white border-pl-pink shadow-lg shadow-pl-pink/30`
+                    : `${theme === 'dark' ? 'bg-zinc-800/50 text-pl-white/80 border-zinc-700 hover:border-pl-pink hover:bg-pl-pink/10' : 'bg-stone-100 text-pl-black/70 border-stone-200 hover:border-pl-pink hover:bg-pl-pink/5'}`
                   }`}
+                style={{ animationDelay: `${idx * 30}ms` }}
               >
-                {cat === 'all' ? '👁️ All Collection' : `${cat} (${products.filter(p => p.category === cat).length})`}
-              </button>
+                {cat === 'all' ? t('shopPage.filter.all') : `${cat} (${products.filter(p => getCategoryName(p.category) === cat).length})`}
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
         )}
+
+        {/* Modern Filter Bar */}
+        <div className={`mb-8 p-4 rounded-2xl border-2 smooth-transition ${theme === 'dark' ? 'bg-zinc-800/30 border-zinc-700' : 'bg-stone-50 border-stone-200'}`}>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Stock Filters */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className={`font-century text-sm font-semibold ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/60'}`}>
+                📦 {t('stock.inStock')}:
+              </span>
+              <div className="flex gap-2 flex-wrap">
+                {(['all', 'in-stock', 'out-of-stock'] as const).map((stock) => (
+                  <motion.button
+                    key={stock}
+                    onClick={() => setFilterByStock(stock)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-century font-medium smooth-transition border ${
+                      filterByStock === stock
+                        ? 'bg-pl-pink text-white border-pl-pink shadow-md shadow-pl-pink/30'
+                        : `${theme === 'dark' ? 'bg-zinc-700/50 text-pl-white/70 border-zinc-600 hover:border-pl-pink' : 'bg-white text-pl-black/60 border-stone-200 hover:border-pl-pink'}`
+                    }`}
+                  >
+                    {stock === 'all' && 'All'}
+                    {stock === 'in-stock' && t('stock.inStock')}
+                    {stock === 'out-of-stock' && t('stock.outOfStock')}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sort */}
+            <div className="flex items-center gap-3">
+              <label htmlFor="sort-select" className={`font-century text-sm font-semibold ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/60'}`}>
+                🔄 {t('sort.by')}:
+              </label>
+              <select
+                id="sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className={`px-4 py-2 rounded-lg text-sm font-century smooth-transition border-2 focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${
+                  theme === 'dark' 
+                    ? 'bg-zinc-700 border-zinc-600 text-pl-white focus:border-pl-pink' 
+                    : 'bg-white border-stone-200 text-pl-black focus:border-pl-pink'
+                }`}
+              >
+                <option value="featured">{t('sort.featured')}</option>
+                <option value="priceLowHigh">{t('sort.priceLowHigh')}</option>
+                <option value="priceHighLow">{t('sort.priceHighLow')}</option>
+                <option value="rating">{t('sort.rating')}</option>
+                <option value="newest">{t('sort.newest')}</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Active Filters Display */}
+          {(selectedCategory !== 'all' || filterByStock !== 'all') && (
+            <div className="mt-4 pt-4 border-t border-pl-pink/20 flex items-center gap-3 flex-wrap">
+              <span className={`text-xs font-century font-semibold ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/50'}`}>
+                Active filters:
+              </span>
+              {selectedCategory !== 'all' && (
+                <motion.button
+                  onClick={() => setSelectedCategory('all')}
+                  whileHover={{ scale: 1.05 }}
+                  className={`px-3 py-1 rounded-lg text-xs font-century border-2 smooth-transition ${theme === 'dark' ? 'bg-pl-pink/20 border-pl-pink text-pl-pink' : 'bg-pl-pink/10 border-pl-pink text-pl-pink'}`}
+                >
+                  {selectedCategory} ✕
+                </motion.button>
+              )}
+              {filterByStock !== 'all' && (
+                <motion.button
+                  onClick={() => setFilterByStock('all')}
+                  whileHover={{ scale: 1.05 }}
+                  className={`px-3 py-1 rounded-lg text-xs font-century border-2 smooth-transition ${theme === 'dark' ? 'bg-pl-pink/20 border-pl-pink text-pl-pink' : 'bg-pl-pink/10 border-pl-pink text-pl-pink'}`}
+                >
+                  {filterByStock === 'in-stock' ? t('stock.inStock') : t('stock.outOfStock')} ✕
+                </motion.button>
+              )}
+            </div>
+          )}
+        </div>
 
         {error && (
-          <div className="bg-pl-red text-pl-white p-6 rounded-xl mb-8 fade-in text-center">
-            <p className="font-century text-lg">{error}</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`p-6 rounded-2xl mb-8 text-center border-2 ${theme === 'dark' ? 'bg-pl-red/20 text-pl-white border-pl-red/50' : 'bg-pl-red/10 text-pl-black border-pl-red/30'}`}
+          >
+            <p className="font-century text-lg font-semibold">{error}</p>
+          </motion.div>
         )}
 
+        {/* Results Count */}
+        <div className={`mb-6 text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
+          {!loading && <p>{filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} found</p>}
+        </div>
+
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((skeleton) => (
-              <div key={skeleton} className="bg-pl-white border border-gray-100 rounded-3xl overflow-hidden h-[450px] flex flex-col shadow-sm">
-                <div className="h-56 loading-shimmer w-full"></div>
-                <div className="p-6 flex-1 flex flex-col gap-4">
-                  <div className="h-6 w-3/4 rounded-full loading-shimmer"></div>
-                  <div className="h-4 w-full rounded-full loading-shimmer"></div>
-                  <div className="h-4 w-5/6 rounded-full loading-shimmer"></div>
-                  <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-50">
-                    <div className="h-6 w-16 rounded-full loading-shimmer"></div>
-                    <div className="h-10 w-24 rounded-full loading-shimmer"></div>
-                  </div>
+              <motion.div
+                key={skeleton}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`rounded-2xl overflow-hidden h-96 flex flex-col ${theme === 'dark' ? 'bg-zinc-800' : 'bg-white'} border-2 ${theme === 'dark' ? 'border-zinc-700' : 'border-stone-100'}`}
+              >
+                <div className={`h-44 w-full animate-pulse ${theme === 'dark' ? 'bg-zinc-700' : 'bg-stone-100'}`}></div>
+                <div className="p-4 space-y-3 flex-1">
+                  <div className={`h-4 w-3/4 rounded animate-pulse ${theme === 'dark' ? 'bg-zinc-700' : 'bg-stone-100'}`}></div>
+                  <div className={`h-3 w-full rounded animate-pulse ${theme === 'dark' ? 'bg-zinc-700' : 'bg-stone-100'}`}></div>
+                  <div className={`h-3 w-5/6 rounded animate-pulse ${theme === 'dark' ? 'bg-zinc-700' : 'bg-stone-100'}`}></div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-24 bg-pl-pink/5 rounded-3xl border border-pl-pink/20 fade-in">
-            <div className="text-7xl mb-6 float-animation">🔍</div>
-            <h3 className="text-2xl font-stayvibes text-pl-pink mb-2">Nothing found here</h3>
-            <p className="text-pl-black/60 text-lg font-century max-w-md mx-auto">We couldn't find any products in this category right now. Spread love and try another category! ✌️</p>
-            <button 
-              onClick={() => setSelectedCategory('all')}
-              className="mt-8 bg-pl-white border-2 border-pl-pink text-pl-pink px-8 py-3 rounded-full hover:bg-pl-pink hover:text-pl-white smooth-transition font-century text-sm tracking-wide"
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`text-center py-24 rounded-3xl border-2 ${theme === 'dark' ? 'bg-pl-pink/5 border-pl-pink/20' : 'bg-pl-pink/5 border-pl-pink/20'}`}
+          >
+            <div className="text-7xl mb-6">🔍</div>
+            <h3 className="text-2xl font-stayvibes text-pl-pink mb-2">{t('shopPage.empty.title')}</h3>
+            <p className={`text-lg font-century max-w-md mx-auto ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
+              {t('shopPage.empty.description')}
+            </p>
+            <motion.button
+              onClick={() => {
+                setSelectedCategory('all')
+                setFilterByStock('all')
+              }}
+              whileHover={{ scale: 1.05 }}
+              className="mt-8 bg-gradient-to-r from-pl-pink to-pl-red text-white px-8 py-3 rounded-full smooth-transition font-century text-sm tracking-wide font-semibold shadow-lg shadow-pl-pink/30"
             >
-              Back to Collection
-            </button>
-          </div>
+              {t('shopPage.empty.back')} →
+            </motion.button>
+          </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {filteredProducts.map((product, idx) => (
-              <div 
-                key={product.id} 
-                className="hover-lift group fade-in"
-                style={{ animationDelay: `${idx * 50}ms` }}
-              >
-                {/* Product Card */}
-                <div className="bg-pl-white border border-gray-100/50 rounded-3xl overflow-hidden h-[450px] flex flex-col smooth-transition shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_10px_40px_rgba(238,122,170,0.15)] hover:border-pl-pink/30 group-hover:-translate-y-2 relative">
-                  
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+          >
+            {filteredProducts.map((product, idx) => {
+              const stock = getProductStock(product)
+              const inStock = isProductInStock(product)
+
+              return (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  whileHover={{ y: -8 }}
+                  className={`group rounded-2xl border-2 overflow-hidden h-96 flex flex-col smooth-transition shadow-lg hover:shadow-2xl ${
+                    theme === 'dark' 
+                      ? 'bg-zinc-800 border-zinc-700 hover:border-pl-pink/50' 
+                      : 'bg-white border-stone-100 hover:border-pl-pink/50'
+                  }`}
+                >
                   {/* Image Container */}
-                  <div className="relative h-56 bg-gradient-to-br from-pl-pink/10 via-[#fafafa] to-pl-pink/5 flex items-center justify-center overflow-hidden group/image">
-                    {/* Abstract placeholder shape if no image */}
+                  <div className={`relative h-44 flex items-center justify-center overflow-hidden group/image ${theme === 'dark' ? 'bg-gradient-to-br from-pl-pink/10 to-zinc-900' : 'bg-gradient-to-br from-pl-pink/10 to-white'}`}>
                     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_50%,var(--pl-pink)_0%,transparent_50%)] smooth-transition group-hover:scale-150"></div>
-                    <div className="text-7xl drop-shadow-md group-hover/image:scale-110 group-hover/image:rotate-[8deg] smooth-transition relative z-10 transition-transform duration-500">✨</div>
-                    
-                    {/* Badge */}
-                    <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md text-pl-pink border border-pl-pink/20 px-4 py-1.5 rounded-full text-xs font-century font-medium tracking-wide shadow-sm z-20 capitalize">
-                      {product.category}
+                    <div className="text-6xl drop-shadow-md group-hover/image:scale-110 group-hover/image:rotate-[8deg] smooth-transition relative z-10">✨</div>
+
+                    {/* Category Badge */}
+                    <div className={`absolute top-3 right-3 backdrop-blur-md px-3 py-1 rounded-full text-xs font-century font-semibold tracking-wide border-2 shadow-md z-20 capitalize ${
+                      theme === 'dark'
+                        ? 'bg-zinc-900/80 text-pl-pink border-pl-pink/50'
+                        : 'bg-white/80 text-pl-pink border-pl-pink/50'
+                    }`}>
+                      {getCategoryName(product.category)}
+                    </div>
+
+                    {/* Stock Badge */}
+                    <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-century font-semibold z-20 border-2 ${
+                      inStock
+                        ? theme === 'dark'
+                          ? 'bg-green-900/80 text-green-200 border-green-500/50'
+                          : 'bg-green-100 text-green-800 border-green-200'
+                        : theme === 'dark'
+                          ? 'bg-red-900/80 text-red-200 border-red-500/50'
+                          : 'bg-red-100 text-red-700 border-red-200'
+                    }`}>
+                      {inStock ? `${t('stock.inStock')}${stock > 0 ? ` • ${stock}` : ''}` : t('stock.outOfStock')}
                     </div>
                   </div>
 
                   {/* Content */}
-                  <div className="p-6 flex-1 flex flex-col bg-gradient-to-b from-white to-pl-pink/[0.02]">
+                  <div className={`p-4 flex-1 flex flex-col ${theme === 'dark' ? 'bg-gradient-to-b from-zinc-800 to-zinc-900' : 'bg-gradient-to-b from-white to-pl-pink/[0.02]'}`}>
                     {/* Title */}
-                    <h3 className="text-xl font-stayvibes text-pl-black mb-2 line-clamp-2 group-hover:text-pl-pink smooth-transition">
+                    <h3 className={`text-lg font-stayvibes line-clamp-2 group-hover:text-pl-pink smooth-transition ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
                       {product.name}
                     </h3>
 
                     {/* Description */}
-                    <p className="text-sm text-pl-black/50 font-century mb-4 line-clamp-2 flex-grow leading-relaxed">
+                    <p className={`text-xs line-clamp-2 mt-2 flex-grow leading-relaxed font-century ${theme === 'dark' ? 'text-pl-white/50' : 'text-pl-black/50'}`}>
                       {product.description}
                     </p>
 
-                    {/* Variants */}
-                    {product.variants && product.variants.length > 0 && (
-                      <div className="mb-5">
-                        <div className="flex flex-wrap gap-2">
-                          {product.variants.slice(0, 3).map((variant, idx) => (
-                            <span 
-                              key={idx} 
-                              className="bg-pl-white border border-gray-200 text-pl-black/60 px-3 py-1 rounded-lg text-[10px] font-century hover:border-pl-pink hover:text-pl-pink smooth-transition shadow-sm"
-                              title={`${variant.variant_value}: ${variant.stock_quantity} in stock`}
-                            >
-                              {variant.variant_value}
-                            </span>
-                          ))}
-                          {product.variants.length > 3 && (
-                            <span className="text-pl-black/40 text-[10px] font-century px-2 py-1 bg-gray-50 rounded-lg">+{product.variants.length - 3}</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-pl-black/40 font-century uppercase tracking-wider mb-0.5">Price</span>
-                        <span className="text-2xl font-stayvibes text-pl-pink font-semibold">
-                          ${parseFloat(product.price as string).toFixed(2)}
-                        </span>
-                      </div>
-                      <button className="bg-pl-black text-pl-white px-5 py-2.5 rounded-xl hover:bg-pl-pink shadow-md hover:shadow-[0_4px_15px_rgba(238,122,170,0.4)] smooth-transition font-century font-medium text-sm flex items-center gap-2 group/btn">
-                        <span>Add</span>
-                        <span className="group-hover/btn:rotate-12 smooth-transition transform origin-center">🛍️</span>
-                      </button>
+                    {/* Footer - Price & Button */}
+                    <div className={`flex items-center justify-between mt-auto pt-3 border-t ${theme === 'dark' ? 'border-zinc-700' : 'border-stone-100'}`}>
+                      <span className="text-xl font-stayvibes text-pl-pink font-semibold">
+                        {new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND', minimumFractionDigits: 0 }).format(Number(product.price))}
+                      </span>
+                      <motion.button
+                        onClick={() => inStock && addToCart(product, undefined, 1)}
+                        disabled={!inStock}
+                        whileHover={inStock ? { scale: 1.1 } : {}}
+                        whileTap={inStock ? { scale: 0.95 } : {}}
+                        className={`px-4 py-2 rounded-lg smooth-transition font-century font-semibold text-sm flex items-center gap-1 border-2 ${
+                          inStock
+                            ? 'bg-gradient-to-r from-pl-pink to-pl-red text-white border-pl-pink hover:shadow-lg hover:shadow-pl-pink/30 cursor-pointer'
+                            : `${theme === 'dark' ? 'bg-zinc-700 text-zinc-400 border-zinc-600' : 'bg-stone-100 text-stone-400 border-stone-200'} cursor-not-allowed`
+                        }`}
+                        title={!inStock ? t('stock.outOfStock') : ''}
+                      >
+                        {!inStock ? '✕' : '🛍️'}
+                      </motion.button>
                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                </motion.div>
+              )
+            })}
+          </motion.div>
         )}
       </main>
 

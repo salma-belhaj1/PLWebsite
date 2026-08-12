@@ -42,6 +42,25 @@ PLWebsite/
 
 ## 🛠️ Setup Instructions
 
+### Recommended: Docker-first workflow
+
+Run the full stack with one command:
+
+```bash
+docker compose up -d --build
+```
+
+This starts:
+- Frontend at `http://localhost:5173`
+- Backend API at `http://localhost:5000`
+- PostgreSQL at `localhost:5432`
+
+To stop everything:
+
+```bash
+docker compose down
+```
+
 ### Prerequisites
 - Node.js 16+
 - PostgreSQL (or use Docker)

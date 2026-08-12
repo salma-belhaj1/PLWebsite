@@ -13,7 +13,8 @@ import AdminDashboard from './pages/admin/Dashboard'
 import Inventory from './pages/admin/Inventory'
 import Expenses from './pages/admin/Expenses'
 import Analytics from './pages/admin/Analytics'
-import Customers from './pages/admin/Customers'
+import Orders from './pages/admin/Orders'
+import CartDrawer from './components/CartDrawer'
 
 function App() {
   return (
@@ -31,9 +32,10 @@ function App() {
           <Route path="/admin/inventory" element={<AdminGuard><Inventory /></AdminGuard>} />
           <Route path="/admin/expenses" element={<AdminGuard><Expenses /></AdminGuard>} />
           <Route path="/admin/analytics" element={<AdminGuard><Analytics /></AdminGuard>} />
-          <Route path="/admin/customers" element={<AdminGuard><Customers /></AdminGuard>} />
+          <Route path="/admin/orders" element={<AdminGuard><Orders /></AdminGuard>} />
         </Routes>
         <Toaster position="top-right" />
+        <CartDrawer />
       </AuthProvider>
     </Router>
   )

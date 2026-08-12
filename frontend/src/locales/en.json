@@ -1,0 +1,153 @@
+{
+  "home": "Home",
+  "shop": "Shop",
+  "admin": "Admin",
+  "instagram": "Instagram",
+  "signIn": "Sign In",
+  "signOut": "Sign Out",
+  "toggleTheme": "Toggle theme",
+  "language": "Language",
+  "hero": {
+    "welcome": "Welcome to the new era of tranquility",
+    "tagline": "Discover serenity in every moment",
+    "description": "Carefully curated products designed to bring peace, love, and beauty into your life ✨",
+    "cta": {
+      "explore": "Explore Collection",
+      "learn": "Learn More"
+    }
+  },
+  "brand": {
+    "name": "Peace & Love"
+  },
+  "values": {
+    "title": "Our Values",
+    "peace": {
+      "title": "Peace",
+      "desc": "Find your inner peace with our carefully curated collection of mindful products designed to calm your spirit."
+    },
+    "love": {
+      "title": "Love",
+      "desc": "Spread love with thoughtful and meaningful gifts that touch the heart and nurture connections."
+    },
+    "quality": {
+      "title": "Quality",
+      "desc": "Premium products crafted with care, passion, and meticulous attention to every detail."
+    }
+  },
+  "featured": {
+    "title": "Featured Collection",
+    "subtitle": "Handpicked items to bring peace and love into your life",
+    "cta": {
+      "exploreAll": "Explore All Collection"
+    }
+  },
+  "product": {
+    "priceLabel": "Price",
+    "add": "Add to Bag",
+    "addedToBag": "Added to bag ✨",
+    "viewDetails": "View Details",
+    "category": "Category",
+    "description": "Description",
+    "details": "Details",
+    "reviews": "Reviews",
+    "currency": "TND"
+  },
+  "newsletter": {
+    "title": "🕊️ Join Our Community",
+    "subtitle": "Subscribe to receive updates on new arrivals, special offers, and inspiring stories from our Peace & Love family",
+    "placeholder": "Enter your email address...",
+    "submit": "Subscribe ✨",
+    "privacy": "We respect your privacy. Unsubscribe at any time."
+  },
+  "announcement": {
+    "welcome": "Welcome — Peace & Love: gifts for spreading calm, care and connection.",
+    "free_shipping": "Free delivery on orders over 100 TND",
+    "sale": "New collection just arrived! ✨",
+    "peace": "Every purchase brings peace to you and to the world 🕊️"
+  },
+  "search": {
+    "placeholder": "Search for clothes, candles, crystals..."
+  },
+  "shopPage": {
+    "title": "Our Collection",
+    "description": "Discover our carefully curated collection of peace, love, and beauty. Each product is selected with care and crafted with intention.",
+    "filter": {
+      "all": "👁️ All Collection"
+    },
+    "empty": {
+      "title": "Nothing found here",
+      "description": "We couldn't find any products in this category right now. Spread love and try another category! ✌️",
+      "back": "Back to Collection"
+    }
+  },
+  "filter": {
+    "inStock": "In stock only",
+    "outOfStock": "Out of stock",
+    "reset": "Reset filters",
+    "apply": "Apply filters"
+  },
+  "sort": {
+    "by": "Sort by",
+    "featured": "Featured",
+    "priceLowHigh": "Price: Low to High",
+    "priceHighLow": "Price: High to Low",
+    "rating": "Top Rated",
+    "newest": "Newest"
+  },
+  "inStockFirst": "In-stock first",
+  "stock": {
+    "inStock": "In stock",
+    "outOfStock": "Out of stock",
+    "limited": "Limited stock"
+  },
+  "cart": {
+    "bag": "Bag",
+    "title": "Shopping Bag",
+    "empty": "Your bag is empty",
+    "remove": "Remove",
+    "subtotal": "Subtotal",
+    "shipping": "Delivery (8 TND)",
+    "total": "Total",
+    "returnToShop": "Return to Shop",
+    "checkout": "Proceed to Checkout",
+    "quantity": "Quantity",
+    "price": "Price"
+  },
+  "checkout": {
+    "details": "Shipping Details",
+    "fullName": "Full name",
+    "email": "Email address",
+    "address": "Street address",
+    "city": "City",
+    "zip": "Postal code",
+    "phone": "Phone number",
+    "cancel": "Return to Bag",
+    "processing": "Processing...",
+    "placeOrder": "Finalize Purchase",
+    "success": "Order Confirmed",
+    "thanks": "Thank you for your purchase. A confirmation email will be sent.",
+    "continue": "Continue Shopping",
+    "error": "Failed to place order. Please try again.",
+    "orderNumber": "Order #",
+    "summary": "Order Summary",
+    "currency": "TND"
+  },
+  "errors": {
+    "loadProducts": "Failed to load products. Please try again."
+  },
+  "footer": {
+    "description": "Spreading peace, love, and positivity through beautiful, intentionally crafted products. Each item is a reminder to live mindfully and love deeply.",
+    "quickLinks": "Quick Links",
+    "links": {
+      "contact": "Contact"
+    },
+    "contact": {
+      "title": "Get In Touch",
+      "emailLabel": "Email",
+      "phoneLabel": "Phone",
+      "instagramLabel": "Instagram"
+    },
+    "copyright": "© 2026 Peace & Love. All rights reserved. | Made with ❤️ and ✨",
+    "tagline": "Spreading peace, love, and beautiful things into the world 🕊️"
+  }
+}

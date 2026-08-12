@@ -1,16 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 :root {
   --pl-pink: #ee7aaa;
   --pl-red: #ff0000;
   --pl-black: #000000;
   --pl-white: #ffffff;
+  --surface-page: #fff7fb;
+  --surface-card: #ffffff;
+  --surface-elevated: rgba(255, 255, 255, 0.9);
+  --text-primary: #111111;
+  --text-secondary: #4b4b4b;
+  --border-soft: rgba(238, 122, 170, 0.2);
+  --brand-gradient: linear-gradient(90deg, #ee7aaa 0%, #ff5b9a 52%, #ff1744 100%);
+  --navbar-gradient: linear-gradient(90deg, rgba(255, 226, 238, 0.95) 0%, rgba(255, 243, 248, 0.95) 100%);
   
   color-scheme: light;
+}
+
+html.dark {
+  --surface-page: #070707;
+  --surface-card: #121212;
+  --surface-elevated: rgba(12, 12, 12, 0.92);
+  --text-primary: #f8f8f8;
+  --text-secondary: #b7b7b7;
+  --border-soft: rgba(238, 122, 170, 0.28);
+  --navbar-gradient: linear-gradient(90deg, rgba(0, 0, 0, 0.94) 0%, rgba(17, 17, 17, 0.94) 100%);
+  color-scheme: dark;
 }
 
 /* ============================================
@@ -124,8 +143,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--pl-white);
-  color: var(--pl-black);
+  background-color: var(--surface-page);
+  color: var(--text-primary);
   animation: fadeIn 0.6s ease-out;
 }
 
@@ -219,6 +238,48 @@ input, textarea, select {
 
 .smooth-transition {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-page {
+  background-color: var(--surface-page);
+  color: var(--text-primary);
+}
+
+.theme-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-soft);
+}
+
+.theme-muted {
+  color: var(--text-secondary);
+}
+
+.theme-navbar {
+  background: var(--navbar-gradient);
+  border: 1px solid var(--border-soft);
+}
+
+.btn-brand {
+  background: var(--brand-gradient);
+  color: #ffffff;
+  border: 1px solid transparent;
+  box-shadow: 0 8px 24px rgba(238, 122, 170, 0.24);
+}
+
+.btn-brand:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 14px 36px rgba(238, 122, 170, 0.35);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-primary);
+}
+
+.btn-outline:hover {
+  border-color: rgba(238, 122, 170, 0.65);
+  background: rgba(238, 122, 170, 0.12);
 }
 
 /* ============================================

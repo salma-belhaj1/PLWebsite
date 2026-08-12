@@ -1,10 +1,13 @@
 # Frontend Dockerfile
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=${VITE_API_URL}
+
 COPY package*.json ./
-RUN npm install
+RUN npm ci --no-audit --no-fund
 
 COPY . .
 

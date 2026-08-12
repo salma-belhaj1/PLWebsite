@@ -33,7 +33,7 @@ export async function getAllProducts(req: Request, res: Response) {
 
     // Get variants for each product
     const productsWithVariants = await Promise.all(
-      result.rows.map(async (product) => {
+      result.rows.map(async (product: { id: number | string }) => {
         const variantResult = await pool.query(
           'SELECT variant_type, variant_value, stock_quantity FROM product_variants WHERE product_id = $1',
           [product.id]
