@@ -38,11 +38,18 @@ export interface Expense {
 
 export interface UserProfile {
   id: string;
+  email?: string;
   full_name: string | null;
   role: 'admin' | 'customer';
   phone: string | null;
-  created_at: string;
-  updated_at: string;
+  birth_date?: string | null;
+  country?: string | null;
+  city?: string | null;
+  state?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface AuthUser {

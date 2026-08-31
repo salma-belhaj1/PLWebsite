@@ -1,0 +1,8 @@
+{
+  "name": "Peace & Love",
+  "description": "A mindful boutique and wellness lifestyle e-commerce store with admin management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

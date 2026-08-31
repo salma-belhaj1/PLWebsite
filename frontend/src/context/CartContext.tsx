@@ -4,12 +4,20 @@ import { Product } from '../services/api'
 export interface CartItem {
   product: Product
   selectedVariant?: string
+  unitPrice?: number
+  imageUrl?: string
   quantity: number
 }
 
 interface CartContextValue {
   cartItems: CartItem[]
-  addToCart: (product: Product, selectedVariant?: string, quantity?: number) => void
+  addToCart: (
+    product: Product,
+    selectedVariant?: string,
+    quantity?: number,
+    unitPrice?: number,
+    imageUrl?: string
+  ) => void
   updateQuantity: (productId: number, variant: string | undefined, delta: number) => void
   removeItem: (productId: number, variant: string | undefined) => void
   clearCart: () => void
@@ -36,15 +44,37 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('pl_cart', JSON.stringify(cartItems))
   }, [cartItems])
 
-  const addToCart = (product: Product, selectedVariant?: string, quantity = 1) => {
+  const addToCart = (
+    product: Product,
+    selectedVariant?: string,
+    quantity = 1,
+    unitPrice?: number,
+    imageUrl?: string
+  ) => {
+    const finalPrice = unitPrice !== undefined && unitPrice !== null ? Number(unitPrice) : Number(product.price)
+    const finalImage = imageUrl || product.image_url || undefined
+
     setCartItems((prev) => {
-      const idx = prev.findIndex((it) => it.product.id === product.id && it.selectedVariant === selectedVariant)
+      const idx = prev.findIndex(
+        (it) => it.product.id === product.id && it.selectedVariant === selectedVariant
+      )
       if (idx > -1) {
         const copy = [...prev]
         copy[idx].quantity += quantity
+        if (unitPrice !== undefined) copy[idx].unitPrice = finalPrice
+        if (imageUrl) copy[idx].imageUrl = finalImage
         return copy
       }
-      return [...prev, { product, selectedVariant, quantity }]
+      return [
+        ...prev,
+        {
+          product,
+          selectedVariant,
+          quantity,
+          unitPrice: finalPrice,
+          imageUrl: finalImage,
+        },
+      ]
     })
     setIsOpen(true)
   }
@@ -63,7 +93,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const removeItem = (productId: number, variant: string | undefined) => {
-    setCartItems((prev) => prev.filter((i) => !(i.product.id === productId && i.selectedVariant === variant)))
+    setCartItems((prev) =>
+      prev.filter((i) => !(i.product.id === productId && i.selectedVariant === variant))
+    )
   }
 
   const clearCart = () => setCartItems([])
@@ -72,7 +104,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <CartContext.Provider
-      value={{ cartItems, addToCart, updateQuantity, removeItem, clearCart, cartCount, isOpen, openCart: () => setIsOpen(true), closeCart: () => setIsOpen(false) }}
+      value={{
+        cartItems,
+        addToCart,
+        updateQuantity,
+        removeItem,
+        clearCart,
+        cartCount,
+        isOpen,
+        openCart: () => setIsOpen(true),
+        closeCart: () => setIsOpen(false),
+      }}
     >
       {children}
     </CartContext.Provider>

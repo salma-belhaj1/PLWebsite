@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { AdminLayout } from '../../components/layout/AdminLayout';
 import { useTheme } from '../../context/ThemeContext';
 import { expensesService, inventoryService, ordersService } from '../../services/api';
+import { RefreshCw } from 'lucide-react';
 
 interface AnalyticsState {
   startBank: number;
@@ -28,6 +29,8 @@ function formatMoney(value: number) {
 
 export default function Analytics() {
   const { theme } = useTheme();
+  const { t } = useTranslation();
+  const isDark = theme === 'dark';
   const [loading, setLoading] = useState(true);
   const [startBankInput, setStartBankInput] = useState(localStorage.getItem('pl_start_bank') || '1200');
   const [state, setState] = useState<AnalyticsState>({
@@ -126,121 +129,136 @@ export default function Analytics() {
 
   return (
     <AdminLayout>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-        <div>
-          <h1 className={`text-4xl font-stayvibes ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-            📈 Analytics
-          </h1>
-          <p className={`mt-2 font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
-            Financial snapshot based on stock, orders, and operating expenses
-          </p>
+      <div className="space-y-6 font-sans">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                {t('admin.analytics.title', 'Analytics')}
+              </h1>
+              <button
+                onClick={loadAnalytics}
+                className={`p-1.5 rounded-lg border transition ${
+                  isDark ? 'border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800' : 'border-stone-200 text-zinc-500 hover:text-zinc-900 hover:bg-stone-100'
+                }`}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+              {t('admin.analytics.subtitle', 'Financial snapshot based on warehouse stock, customer orders, and operating expenses.')}
+            </p>
+          </div>
         </div>
 
-        <div className={`rounded-2xl border-2 p-6 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-stone-200'}`}>
+        {/* Start Bank Setting */}
+        <div className={`rounded-2xl border p-5 ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div>
-              <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>
-                Start Bank
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">
+                Starting Working Capital (TND)
               </label>
               <input
                 type="number"
                 value={startBankInput}
                 onChange={e => setStartBankInput(e.target.value)}
-                className={`w-full px-4 py-2 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-700 border-zinc-600 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none transition ${
+                  isDark ? 'bg-zinc-800 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                }`}
               />
             </div>
             <button
               onClick={saveStartBank}
-              className="px-6 py-3 rounded-lg bg-gradient-to-r from-pl-pink to-pl-red text-white font-century font-semibold border-2 border-pl-pink hover:shadow-lg hover:shadow-pl-pink/30 smooth-transition"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm font-semibold shadow-md shadow-rose-500/20 hover:opacity-95 transition"
             >
-              Save Start Bank
+              Update Working Capital
             </button>
-            <div className={`rounded-xl px-4 py-3 ${theme === 'dark' ? 'bg-zinc-700' : 'bg-stone-100'}`}>
-              <div className={`text-xs font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>Start Date</div>
-              <div className={`font-century font-semibold ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                {state.startDate || 'No orders yet'}
-              </div>
+            <p className="text-xs text-zinc-400">
+              Period: {state.startDate || '—'} to {state.today} ({orderCount} orders processed)
+            </p>
+          </div>
+        </div>
+
+        {/* Financial KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className={`rounded-2xl border p-5 ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+            <span className="text-xs text-zinc-500 font-medium">Estimated Bank Balance</span>
+            <div className="text-2xl sm:text-3xl font-bold mt-2 text-emerald-600 dark:text-emerald-400">
+              {formatMoney(state.bank)} TND
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">Starting capital + revenues - expenses</p>
+          </div>
+
+          <div className={`rounded-2xl border p-5 ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+            <span className="text-xs text-zinc-500 font-medium">Realized Net Profit</span>
+            <div className="text-2xl sm:text-3xl font-bold mt-2 text-rose-500">
+              {formatMoney(state.profit)} TND
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">Total revenue - total expenses</p>
+          </div>
+
+          <div className={`rounded-2xl border p-5 ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+            <span className="text-xs text-zinc-500 font-medium">Projected Inventory Margin</span>
+            <div className="text-2xl sm:text-3xl font-bold mt-2 text-blue-500">
+              {formatMoney(state.futureProfit)} TND
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">Expected profit when current stock sells</p>
+          </div>
+        </div>
+
+        {/* Detailed Breakdown */}
+        <div className={`rounded-2xl border p-6 ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+          <h2 className="text-base font-bold tracking-tight mb-4">Financial Flow Summary</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-3.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/40">
+              <p className="text-xs text-zinc-400">Inventory Cost Value</p>
+              <p className="text-base font-bold mt-1">{formatMoney(state.totalExpenses)} TND</p>
+            </div>
+            <div className="p-3.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/40">
+              <p className="text-xs text-zinc-400">Operational Expenses</p>
+              <p className="text-base font-bold mt-1 text-rose-500">{formatMoney(state.otherExpenses)} TND</p>
+            </div>
+            <div className="p-3.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/40">
+              <p className="text-xs text-zinc-400">Total Order Sales</p>
+              <p className="text-base font-bold mt-1 text-emerald-500">{formatMoney(state.entering)} TND</p>
+            </div>
+            <div className="p-3.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/40">
+              <p className="text-xs text-zinc-400">Stock Retail Value</p>
+              <p className="text-base font-bold mt-1 text-blue-500">{formatMoney(state.hope)} TND</p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Expenses', value: state.totalExpenses, color: 'text-red-500' },
-            { label: 'Other Exp', value: state.otherExpenses, color: 'text-orange-500' },
-            { label: 'Entering', value: state.entering, color: 'text-blue-500' },
-            { label: 'Profit', value: state.profit, color: 'text-green-500' },
-            { label: 'Bank', value: state.bank, color: 'text-pl-pink' },
-            { label: 'Future Profit', value: state.futureProfit, color: 'text-purple-500' },
-            { label: 'Hope', value: state.hope, color: 'text-indigo-500' },
-            { label: 'Future Bank', value: state.futureBank, color: 'text-emerald-500' },
-          ].map(card => (
-            <div key={card.label} className={`rounded-2xl border-2 p-6 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-stone-200'}`}>
-              <p className={`text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>{card.label}</p>
-              <p className={`text-3xl font-stayvibes mt-2 ${card.color}`}>{formatMoney(card.value)} TND</p>
-            </div>
-          ))}
-        </div>
-
-        <div className={`rounded-2xl border-2 p-6 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-stone-200'}`}>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className={`text-2xl font-stayvibes ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                Chart Profit
-              </h2>
-              <p className={`text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
-                Monthly completed order revenue trend
-              </p>
-            </div>
-            <div className={`text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
-              Orders: {orderCount}
-            </div>
-          </div>
-
-          {loading ? (
-            <div className={`py-16 text-center rounded-xl border-2 border-dashed ${theme === 'dark' ? 'border-zinc-700 text-pl-white/60' : 'border-stone-300 text-pl-black/60'}`}>
-              Loading analytics...
-            </div>
-          ) : months.length === 0 ? (
-            <div className={`py-16 text-center rounded-xl border-2 border-dashed ${theme === 'dark' ? 'border-zinc-700 text-pl-white/60' : 'border-stone-300 text-pl-black/60'}`}>
-              No completed order data yet
-            </div>
+        {/* Monthly Trend Chart */}
+        <div className={`rounded-2xl border p-6 ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+          <h2 className="text-base font-bold tracking-tight mb-4">Monthly Revenue Trajectory</h2>
+          {months.length === 0 ? (
+            <p className="text-sm text-zinc-400 py-8 text-center">No monthly order records yet</p>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 items-start">
-              <div className="h-72 rounded-xl border border-stone-200 p-4 bg-stone-50/50">
-                <div className="h-full flex items-end gap-3">
-                  {months.map(month => {
-                    const revenue = monthlyRevenue[month];
-                    const height = Math.max((revenue / peakRevenue) * 100, 6);
-                    return (
-                      <div key={month} className="flex-1 flex flex-col items-center justify-end h-full">
-                        <div className="w-full max-w-14 bg-gradient-to-t from-pl-red to-pl-pink rounded-t-lg" style={{ height: `${height}%` }} />
-                        <div className={`mt-2 text-xs font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
-                          {month}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className={`rounded-xl border-2 p-4 min-w-72 ${theme === 'dark' ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-stone-200'}`}>
-                <h3 className={`font-stayvibes text-xl mb-3 ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                  Monthly Revenue
-                </h3>
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {months.map(month => (
-                    <div key={month} className={`flex items-center justify-between rounded-lg px-3 py-2 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-stone-100'}`}>
-                      <span className={`font-century ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>{month}</span>
-                      <span className="font-semibold text-pl-pink">{formatMoney(monthlyRevenue[month])} TND</span>
+            <div className="space-y-3">
+              {months.map(month => {
+                const amount = monthlyRevenue[month] || 0;
+                const pct = Math.max(8, (amount / peakRevenue) * 100);
+                return (
+                  <div key={month} className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="font-mono text-zinc-500">{month}</span>
+                      <span>{formatMoney(amount)} TND</span>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="w-full h-3 rounded-full bg-stone-100 dark:bg-zinc-800 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-rose-500 to-pink-500 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </AdminLayout>
   );
 }

@@ -1,9 +1,26 @@
+import { useState, useEffect } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useTranslation } from 'react-i18next'
+import { productService, Product } from '../services/api'
+import ProductCard from '../components/ProductCard'
+import ProductQuickViewModal from '../components/ProductQuickViewModal'
 
 export default function Home() {
   const { t } = useTranslation()
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null)
+
+  useEffect(() => {
+    productService.getAllProducts().then((res: any) => {
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      if (list && list.length > 0) {
+        setFeaturedProducts(list.slice(0, 4));
+      }
+    }).catch((err: unknown) => {
+      console.error('Error fetching featured products:', err);
+    });
+  }, []);
   return (
     <div className="min-h-screen theme-page pt-24">
       <Header />
@@ -98,55 +115,49 @@ export default function Home() {
       {/* Featured Products Section */}
       <section className="py-20 md:py-32 bg-gradient-to-b from-pl-white/50 to-pl-white dark:from-[#0d0d0d] dark:to-[#070707]">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16 slide-in-up">
-            <h2 className="text-6xl font-stayvibes text-pl-pink mb-4 hover:scale-105 smooth-transition cursor-default">{t('featured.title')}</h2>
-            <p className="text-lg font-century text-pl-black/70 mb-4">{t('featured.subtitle')}</p>
-            <div className="h-1.5 w-32 bg-gradient-to-r from-pl-pink to-pl-red mx-auto rounded-full shadow-sm"></div>
+          <div 
+            className="relative text-center mb-16 p-8 md:p-14 min-h-[220px] md:min-h-[260px] flex flex-col justify-center items-center rounded-3xl overflow-hidden shadow-xl border border-pl-pink/20 slide-in-up"
+          >
+            {/* Background Image across the whole picture */}
+            <img
+              src="/media/background.jpg"
+              alt="Peace & Love Featured Collection"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+            {/* Gentle overlay across the whole picture for clear image visibility and legibility */}
+            <div className="absolute inset-0 bg-white/40 dark:bg-black/45 transition-colors"></div>
+            <div className="relative z-10 w-full">
+              <h2 className="text-6xl md:text-7xl font-stayvibes text-pl-pink mb-4 hover:scale-105 smooth-transition cursor-default drop-shadow-sm">{t('featured.title')}</h2>
+              <p className="text-lg md:text-xl font-century text-pl-black/90 dark:text-pl-white mb-4 max-w-2xl mx-auto font-semibold drop-shadow-xs">{t('featured.subtitle')}</p>
+              <div className="h-1.5 w-32 bg-gradient-to-r from-pl-pink to-pl-red mx-auto rounded-full shadow-sm"></div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[1, 2, 3, 4].map((item) => (
-              <div 
-                key={item}
-                className="hover-lift group fade-in relative"
-                style={{ animationDelay: `${item * 100}ms` }}
-              >
-                {/* Product Card */}
-                <div className="bg-white border border-gray-100/50 rounded-3xl overflow-hidden h-[450px] flex flex-col smooth-transition shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_10px_40px_rgba(238,122,170,0.15)] hover:border-pl-pink/30 group-hover:-translate-y-2 relative">
-                  
-                  {/* Image Container */}
-                  <div className="relative h-56 bg-gradient-to-br from-pl-pink/10 via-[#fafafa] to-pl-pink/5 flex items-center justify-center overflow-hidden group/image">
-                    {/* Abstract placeholder shape if no image */}
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_50%,var(--pl-pink)_0%,transparent_50%)] smooth-transition group-hover:scale-150"></div>
-                    <div className="text-7xl drop-shadow-md group-hover/image:scale-110 group-hover/image:rotate-[8deg] smooth-transition relative z-10 transition-transform duration-500">
-                      {item === 1 ? '🕊️' : item === 2 ? '❤️' : item === 3 ? '✨' : '🌸'}
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6 flex-1 flex flex-col bg-gradient-to-b from-white to-pl-pink/[0.02]">
-                    <h4 className="font-stayvibes text-xl text-pl-black mb-2 group-hover:text-pl-pink smooth-transition">
-                      Featured Item {item}
-                    </h4>
-                    <p className="font-century text-pl-black/50 text-sm mb-4 flex-grow leading-relaxed">
-                      Beautiful and meaningful product to enhance your daily peace
-                    </p>
-                    
-                    {/* Footer */}
-                    <div className="flex justify-between items-center mt-auto pt-4 border-t border-gray-100">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-pl-black/40 font-century uppercase tracking-wider mb-0.5">{t('product.priceLabel')}</span>
-                        <span className="font-stayvibes text-2xl text-pl-pink font-semibold">$24.99</span>
-                      </div>
-                      <button className="btn-brand px-5 py-2.5 rounded-xl smooth-transition font-century font-medium text-sm flex items-center gap-2 group/btn">
-                        <span>{t('product.add')}</span>
-                        <span className="group-hover/btn:rotate-12 smooth-transition transform origin-center">✨</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+            {featuredProducts.length > 0 ? (
+              featuredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  hideAddText={true}
+                  onOpenQuickView={(p) => setQuickViewProduct(p)}
+                />
+              ))
+            ) : (
+              [
+                { id: 1, name: 'Peace Candle', price: 24.99, description: 'Handcrafted soy candle with soothing lavender and vanilla notes.', image_url: '/media/peace_candle.jpg', variants: [{ variant_type: 'Color', variant_value: 'Rose|#ee7aaa|' }, { variant_type: 'Color', variant_value: 'Cream|#fef3c7|' }] },
+                { id: 2, name: 'Love Bracelet', price: 34.99, description: 'Elegant rose gold charm bracelet designed to inspire daily gratitude.', image_url: '/media/love_bracelet.jpg', variants: [{ variant_type: 'Color', variant_value: 'Rose Gold|#d4af37|' }, { variant_type: 'Color', variant_value: 'Silver|#e5e7eb|' }] },
+                { id: 3, name: 'Care Journal', price: 19.99, description: 'Hardcover guided reflection journal for daily peace and self care.', image_url: '/media/care_journal.jpg', variants: [{ variant_type: 'Color', variant_value: 'Blush Pink|#ffc0cb|' }, { variant_type: 'Color', variant_value: 'Sage Green|#6ee7b7|' }] },
+                { id: 4, name: 'Zen Diffuser', price: 49.99, description: 'Minimalist ceramic essential oil diffuser with soothing ambient glow.', image_url: '/media/zen_diffuser.jpg', variants: [{ variant_type: 'Color', variant_value: 'Matte White|#ffffff|' }, { variant_type: 'Color', variant_value: 'Charcoal|#18181b|' }] },
+              ].map((fallbackProduct) => (
+                <ProductCard
+                  key={fallbackProduct.id}
+                  product={fallbackProduct as any}
+                  hideAddText={true}
+                  onOpenQuickView={(p) => setQuickViewProduct(p)}
+                />
+              ))
+            )}
           </div>
 
           <div className="text-center mt-20 slide-in-up">
@@ -195,6 +206,12 @@ export default function Home() {
       </section>
 
       <Footer />
+
+      {/* Product Quick View Modal */}
+      <ProductQuickViewModal
+        product={quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+      />
     </div>
   )
 }

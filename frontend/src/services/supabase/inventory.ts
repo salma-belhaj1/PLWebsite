@@ -72,11 +72,11 @@ export async function getLowStockItems() {
       *,
       product:products(id, name, description, category_id, price, cost_price, profit, image_url, is_active, is_featured, status, category:categories(id, name))
     `)
-    .lte('stock_quantity', supabase.raw('reorder_level'))
     .order('stock_quantity', { ascending: true });
 
   if (error) throw error;
-  return data as InventoryWithProduct[];
+  const items = (data as InventoryWithProduct[]) || [];
+  return items.filter((i) => i.stock_quantity <= i.reorder_level);
 }
 
 // Get out of stock items
@@ -108,10 +108,19 @@ export async function updateStockQuantity(productId: number, quantity: number) {
 
 // Add to stock
 export async function addStock(productId: number, quantity: number) {
+  const { data: current, error: fetchErr } = await supabase
+    .from('inventory_items')
+    .select('stock_quantity')
+    .eq('product_id', productId)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+  const newQty = (current?.stock_quantity || 0) + quantity;
+
   const { data, error } = await supabase
     .from('inventory_items')
     .update({
-      stock_quantity: supabase.raw('stock_quantity + ' + quantity),
+      stock_quantity: newQty,
       last_restocked: new Date().toISOString(),
     })
     .eq('product_id', productId)
@@ -124,9 +133,18 @@ export async function addStock(productId: number, quantity: number) {
 
 // Remove from stock
 export async function removeStock(productId: number, quantity: number) {
+  const { data: current, error: fetchErr } = await supabase
+    .from('inventory_items')
+    .select('stock_quantity')
+    .eq('product_id', productId)
+    .single();
+
+  if (fetchErr) throw fetchErr;
+  const newQty = Math.max(0, (current?.stock_quantity || 0) - quantity);
+
   const { data, error } = await supabase
     .from('inventory_items')
-    .update({ stock_quantity: supabase.raw('stock_quantity - ' + quantity) })
+    .update({ stock_quantity: newQty })
     .eq('product_id', productId)
     .select()
     .single();

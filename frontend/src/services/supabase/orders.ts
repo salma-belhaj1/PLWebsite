@@ -74,14 +74,19 @@ export async function createOrder(orderData: {
 
     // Update inventory stock
     if (item.variant_id) {
-      const { error: variantError } = await supabase
+      const { data: variant } = await supabase
         .from('product_variants')
-        .update({
-          stock_quantity: supabase.raw('stock_quantity - ' + item.quantity),
-        })
-        .eq('id', item.variant_id);
+        .select('stock_quantity')
+        .eq('id', item.variant_id)
+        .single();
 
-      if (variantError) throw variantError;
+      if (variant) {
+        const newStock = Math.max(0, (variant.stock_quantity || 0) - item.quantity);
+        await supabase
+          .from('product_variants')
+          .update({ stock_quantity: newStock })
+          .eq('id', item.variant_id);
+      }
     }
   }
 

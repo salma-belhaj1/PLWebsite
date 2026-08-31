@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { AdminLayout } from '../../components/layout/AdminLayout';
 import { useTheme } from '../../context/ThemeContext';
 import { expensesService } from '../../services/api';
+import {
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  Receipt,
+  TrendingDown,
+  RefreshCw,
+  X,
+  PieChart,
+} from 'lucide-react';
 
 interface ExpenseFormState {
   category: string;
@@ -42,12 +54,15 @@ const initialFormState: ExpenseFormState = {
 
 export default function Expenses() {
   const { theme } = useTheme();
+  const { t } = useTranslation();
+  const isDark = theme === 'dark';
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [stats, setStats] = useState<ExpenseStats | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [form, setForm] = useState<ExpenseFormState>(initialFormState);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -55,15 +70,6 @@ export default function Expenses() {
   useEffect(() => {
     loadExpenses();
   }, []);
-
-  function openExpenseModal() {
-    setShowExpenseModal(true);
-  }
-
-  function closeExpenseModal() {
-    setShowExpenseModal(false);
-    resetForm();
-  }
 
   async function loadExpenses() {
     try {
@@ -86,355 +92,261 @@ export default function Expenses() {
   }
 
   const filteredExpenses = useMemo(() => {
-    if (selectedCategory === 'all') {
-      return expenses;
-    }
-
-    return expenses.filter(expense => expense.category === selectedCategory);
-  }, [expenses, selectedCategory]);
-
-  function resetForm() {
-    setForm(initialFormState);
-    setEditingId(null);
-  }
-
-  function startEdit(expense: ExpenseItem) {
-    setEditingId(expense.id);
-    setForm({
-      category: expense.category,
-      description: expense.description || '',
-      amount: expense.amount,
-      expense_date: expense.expense_date.split('T')[0],
-      notes: expense.notes || '',
-      status: (expense.status as 'active' | 'archived') || 'active',
+    return expenses.filter(expense => {
+      const matchCat = selectedCategory === 'all' || expense.category === selectedCategory;
+      const query = searchQuery.toLowerCase();
+      const matchSearch =
+        !searchQuery ||
+        expense.category.toLowerCase().includes(query) ||
+        (expense.description || '').toLowerCase().includes(query) ||
+        (expense.notes || '').toLowerCase().includes(query);
+      return matchCat && matchSearch;
     });
+  }, [expenses, selectedCategory, searchQuery]);
+
+  function openExpenseModal(expense?: ExpenseItem) {
+    if (expense) {
+      setEditingId(expense.id);
+      setForm({
+        category: expense.category,
+        description: expense.description || '',
+        amount: expense.amount || 0,
+        expense_date: expense.expense_date,
+        notes: expense.notes || '',
+        status: (expense.status as any) || 'active',
+      });
+    } else {
+      setEditingId(null);
+      setForm(initialFormState);
+    }
     setShowExpenseModal(true);
   }
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  function closeExpenseModal() {
+    setShowExpenseModal(false);
+    setEditingId(null);
+    setForm(initialFormState);
+  }
 
-    if (!form.category.trim() || !form.description.trim() || form.amount <= 0) {
-      toast.error('Fill all required fields with valid values');
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.category.trim()) {
+      toast.error('Expense category is required');
+      return;
+    }
+    if (form.amount <= 0) {
+      toast.error('Please enter a valid expense amount');
       return;
     }
 
     try {
       setSaving(true);
-
-      const payload = {
-        category: form.category.trim(),
-        description: form.description.trim(),
-        amount: form.amount,
-        expense_date: form.expense_date,
-        notes: form.notes.trim() || null,
-        status: form.status,
-      };
-
       if (editingId) {
-        await expensesService.updateExpense(editingId, payload);
-        toast.success('Expense updated');
+        await expensesService.updateExpense(editingId, form);
+        toast.success('Expense updated successfully');
       } else {
-        await expensesService.createExpense(payload as any);
-        toast.success('Expense added');
+        await expensesService.createExpense(form as any);
+        toast.success('Expense logged successfully');
       }
-
-      resetForm();
-      await loadExpenses();
       closeExpenseModal();
+      await loadExpenses();
     } catch (error) {
-      console.error('Expense save failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save expense');
+      console.error('Failed to save expense:', error);
+      toast.error('Failed to save expense');
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleArchive(id: number) {
-    try {
-      await expensesService.archiveExpense(id);
-      toast.success('Expense archived');
-      await loadExpenses();
-    } catch (error) {
-      console.error('Archive failed:', error);
-      toast.error('Failed to archive expense');
-    }
-  }
-
   async function handleDelete(id: number) {
-    if (!confirm('Delete this expense permanently?')) return;
-
+    if (!confirm('Are you sure you want to delete this expense?')) return;
     try {
       await expensesService.deleteExpense(id);
       toast.success('Expense deleted');
       await loadExpenses();
     } catch (error) {
-      console.error('Delete failed:', error);
+      console.error('Failed to delete expense:', error);
       toast.error('Failed to delete expense');
     }
   }
 
   return (
     <AdminLayout>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 font-sans">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className={`text-4xl font-stayvibes ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-              💰 Expense Management
-            </h1>
-            <p className={`mt-2 font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
-              Track packaging, shipping, and operating costs
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                {t('admin.expenses.title', 'Expenses')}
+              </h1>
+              <button
+                onClick={loadExpenses}
+                className={`p-1.5 rounded-lg border transition ${
+                  isDark ? 'border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800' : 'border-stone-200 text-zinc-500 hover:text-zinc-900 hover:bg-stone-100'
+                }`}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
+              {t('admin.expenses.subtitle', 'Track packaging, raw supplies, marketing, and recurring operational costs.')}
             </p>
           </div>
-          <motion.button
-            onClick={openExpenseModal}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-6 py-3 rounded-lg bg-gradient-to-r from-pl-pink to-pl-red text-white font-century font-semibold border-2 border-pl-pink hover:shadow-lg hover:shadow-pl-pink/30 smooth-transition"
+
+          <button
+            onClick={() => openExpenseModal()}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/20 hover:opacity-95 transition"
           >
-            + New Expense
-          </motion.button>
+            <Plus className="w-4 h-4" />
+            <span>{t('admin.expenses.addExpense', 'Add Expense')}</span>
+          </button>
         </div>
 
-        {stats && !isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className={`rounded-2xl border-2 p-6 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-stone-200'}`}>
-              <p className={`text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>Total Expenses</p>
-              <p className={`text-2xl font-stayvibes mt-2 ${theme === 'dark' ? 'text-pl-pink' : 'text-pl-red'}`}>
-                {stats.total_expenses.toFixed(2)} TND
-              </p>
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className={`p-5 rounded-2xl border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+            <div className="flex items-center justify-between text-zinc-500 text-xs font-medium">
+              <span>Total Recorded Outflow</span>
+              <TrendingDown className="w-4 h-4 text-rose-500" />
             </div>
-            <div className={`rounded-2xl border-2 p-6 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-stone-200'}`}>
-              <p className={`text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>Expense Count</p>
-              <p className={`text-2xl font-stayvibes mt-2 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}>
-                {stats.count}
-              </p>
-            </div>
-            <div className={`rounded-2xl border-2 p-6 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-stone-200'}`}>
-              <p className={`text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>Categories</p>
-              <p className={`text-2xl font-stayvibes mt-2 ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                {Object.keys(stats.by_category).length}
-              </p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-rose-500">
+                {(stats?.total_expenses || 0).toFixed(2)} TND
+              </span>
             </div>
           </div>
-        )}
 
-        <AnimatePresence>
-          {showExpenseModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-            >
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 20, opacity: 0 }}
-                className={`w-full max-w-3xl rounded-3xl border-2 shadow-2xl overflow-hidden ${theme === 'dark' ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-stone-200'}`}
-              >
-                <div className={`flex items-center justify-between p-6 border-b ${theme === 'dark' ? 'border-zinc-700 bg-zinc-800' : 'border-stone-200 bg-stone-50'}`}>
-                  <div>
-                    <h2 className={`text-2xl font-stayvibes ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                      {editingId ? 'Edit Expense' : 'Add Expense'}
-                    </h2>
-                    <p className={`text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
-                      Create or update operating costs with category, amount, and notes.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={closeExpenseModal}
-                    className={`text-2xl ${theme === 'dark' ? 'text-pl-white/60 hover:text-pl-white' : 'text-pl-black/60 hover:text-pl-black'}`}
-                  >
-                    ✕
-                  </button>
-                </div>
+          <div className={`p-5 rounded-2xl border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+            <div className="flex items-center justify-between text-zinc-500 text-xs font-medium">
+              <span>Expense Entries</span>
+              <Receipt className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight">
+                {stats?.count || 0}
+              </span>
+              <span className="text-xs text-zinc-400">transactions</span>
+            </div>
+          </div>
 
-                <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-                      Category *
-                    </label>
-                    <input
-                      list="expense-categories"
-                      value={form.category}
-                      onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
-                      className={`w-full px-4 py-3 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
-                      placeholder="Packaging, Shipping, Supplies..."
-                    />
-                    <datalist id="expense-categories">
-                      {categories.map((category) => (
-                        <option key={category} value={category} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  <div>
-                    <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-                      Amount (TND) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.amount}
-                      onChange={(e) => setForm((prev) => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                      className={`w-full px-4 py-3 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  <div>
-                    <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-                      Date *
-                    </label>
-                    <input
-                      type="date"
-                      value={form.expense_date}
-                      onChange={(e) => setForm((prev) => ({ ...prev, expense_date: e.target.value }))}
-                      className={`w-full px-4 py-3 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-                      Status
-                    </label>
-                    <select
-                      value={form.status}
-                      onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as 'active' | 'archived' }))}
-                      className={`w-full px-4 py-3 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
-                    >
-                      <option value="active">Active</option>
-                      <option value="archived">Archived</option>
-                    </select>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-                      Description *
-                    </label>
-                    <input
-                      type="text"
-                      value={form.description}
-                      onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                      className={`w-full px-4 py-3 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
-                      placeholder="Describe the expense"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-                      Notes
-                    </label>
-                    <input
-                      type="text"
-                      value={form.notes}
-                      onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-                      className={`w-full px-4 py-3 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
-                      placeholder="Optional notes"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 flex flex-wrap gap-3 justify-end pt-2">
-                    <button
-                      type="button"
-                      onClick={closeExpenseModal}
-                      className={`px-6 py-3 rounded-lg font-century font-semibold border-2 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-pl-white' : 'bg-stone-100 border-stone-200 text-pl-black'}`}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="px-6 py-3 rounded-lg bg-gradient-to-r from-pl-pink to-pl-red text-white font-century font-semibold border-2 border-pl-pink hover:shadow-lg hover:shadow-pl-pink/30 smooth-transition disabled:opacity-50"
-                    >
-                      {saving ? 'Saving...' : editingId ? 'Update Expense' : 'Add Expense'}
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className={`rounded-2xl border-2 p-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-stone-200'}`}>
-          <label className={`block text-sm font-century font-semibold mb-2 ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-            Filter by category
-          </label>
-          <select
-            value={selectedCategory}
-            onChange={e => setSelectedCategory(e.target.value)}
-            className={`w-full md:w-80 px-4 py-2 rounded-lg border-2 font-century focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${theme === 'dark' ? 'bg-zinc-700 border-zinc-600 text-pl-white' : 'bg-stone-50 border-stone-200 text-pl-black'}`}
-          >
-            <option value="all">All categories</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          <div className={`p-5 rounded-2xl border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+            <div className="flex items-center justify-between text-zinc-500 text-xs font-medium">
+              <span>Active Categories</span>
+              <PieChart className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight">
+                {Object.keys(stats?.by_category || {}).length}
+              </span>
+              <span className="text-xs text-zinc-400">categories</span>
+            </div>
+          </div>
         </div>
 
-        <div className={`rounded-2xl border-2 overflow-hidden ${theme === 'dark' ? 'border-zinc-700' : 'border-stone-200'}`}>
+        {/* Filter bar */}
+        <div className={`p-4 rounded-2xl border ${isDark ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search expense description, notes..."
+                className={`w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none transition ${
+                  isDark ? 'bg-zinc-800/80 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                }`}
+              />
+            </div>
+
+            <div>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none cursor-pointer transition ${
+                  isDark ? 'bg-zinc-800/80 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                }`}
+              >
+                <option value="all">All Expense Categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-zinc-900/80 border-zinc-800' : 'bg-white border-stone-200 shadow-sm'}`}>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-left text-sm">
               <thead>
-                <tr className={`border-b ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-stone-50 border-stone-200'}`}>
-                  <th className={`px-6 py-4 text-left text-sm font-century font-semibold ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>Category</th>
-                  <th className={`px-6 py-4 text-left text-sm font-century font-semibold ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>Description</th>
-                  <th className={`px-6 py-4 text-left text-sm font-century font-semibold ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>Amount</th>
-                  <th className={`px-6 py-4 text-left text-sm font-century font-semibold ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>Date</th>
-                  <th className={`px-6 py-4 text-left text-sm font-century font-semibold ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>Actions</th>
+                <tr className={`border-b text-xs font-semibold uppercase tracking-wider ${
+                  isDark ? 'bg-zinc-900/90 border-zinc-800 text-zinc-400' : 'bg-stone-50 border-stone-200 text-zinc-500'
+                }`}>
+                  <th className="px-5 py-3.5">Date</th>
+                  <th className="px-4 py-3.5">Category</th>
+                  <th className="px-4 py-3.5">Description & Notes</th>
+                  <th className="px-4 py-3.5">Amount</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={`divide-y ${isDark ? 'divide-zinc-800/70' : 'divide-stone-100'}`}>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading...</td>
+                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <RefreshCw className="w-6 h-6 animate-spin text-rose-500" />
+                        <span className="text-sm font-medium">Loading expenses...</span>
+                      </div>
+                    </td>
                   </tr>
                 ) : filteredExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No expenses recorded</td>
+                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">
+                      <Receipt className="w-8 h-8 mx-auto text-zinc-300 dark:text-zinc-600 mb-2" />
+                      <p className="font-semibold text-zinc-700 dark:text-zinc-300">No expense records found</p>
+                    </td>
                   </tr>
                 ) : (
-                  filteredExpenses.map(expense => (
-                    <tr key={expense.id} className={`border-b ${theme === 'dark' ? 'border-zinc-700' : 'border-stone-200'}`}>
-                      <td className={`px-6 py-4 font-century ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                        {expense.category}
+                  filteredExpenses.map((expense) => (
+                    <tr key={expense.id} className={isDark ? 'hover:bg-zinc-800/40' : 'hover:bg-stone-50/80'}>
+                      <td className="px-5 py-4 font-mono text-xs text-zinc-400">
+                        {expense.expense_date}
                       </td>
-                      <td className={`px-6 py-4 font-century ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/80'}`}>
-                        {expense.description || '—'}
+                      <td className="px-4 py-4">
+                        <span className="inline-block px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                          {expense.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-medium text-sm">{expense.description || '—'}</p>
                         {expense.notes && (
-                          <div className={`text-xs mt-1 ${theme === 'dark' ? 'text-pl-white/40' : 'text-pl-black/40'}`}>
-                            {expense.notes}
-                          </div>
+                          <p className="text-xs text-zinc-400 mt-0.5">{expense.notes}</p>
                         )}
                       </td>
-                      <td className={`px-6 py-4 font-century font-semibold ${theme === 'dark' ? 'text-green-400' : 'text-green-600'}`}>
-                        {expense.amount.toFixed(2)} TND
+                      <td className="px-4 py-4 font-bold text-rose-500">
+                        -{expense.amount.toFixed(2)} TND
                       </td>
-                      <td className={`px-6 py-4 font-century ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>
-                        {new Date(expense.expense_date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 font-century space-x-2">
-                        <button
-                          onClick={() => startEdit(expense)}
-                          className={`px-3 py-1 rounded-lg text-sm font-semibold ${theme === 'dark' ? 'bg-pl-pink/20 text-pl-pink' : 'bg-pl-pink/10 text-pl-pink'}`}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleArchive(expense.id)}
-                          className={`px-3 py-1 rounded-lg text-sm font-semibold ${theme === 'dark' ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}
-                        >
-                          Archive
-                        </button>
-                        <button
-                          onClick={() => handleDelete(expense.id)}
-                          className={`px-3 py-1 rounded-lg text-sm font-semibold ${theme === 'dark' ? 'bg-red-900/30 text-red-300' : 'bg-red-100 text-red-800'}`}
-                        >
-                          Delete
-                        </button>
+                      <td className="px-5 py-4 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => openExpenseModal(expense)}
+                            className={`p-2 rounded-xl border text-xs font-semibold transition ${
+                              isDark ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800' : 'border-stone-200 text-zinc-700 hover:bg-stone-100'
+                            }`}
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(expense.id)}
+                            className="p-2 rounded-xl border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -443,7 +355,139 @@ export default function Expenses() {
             </table>
           </div>
         </div>
-      </motion.div>
+
+        {/* Modal */}
+        <AnimatePresence>
+          {showExpenseModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.96, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.96, opacity: 0 }}
+                className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden ${
+                  isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-stone-200 text-zinc-900'
+                }`}
+              >
+                <div className={`flex items-center justify-between p-5 border-b ${
+                  isDark ? 'bg-zinc-900/90 border-zinc-800' : 'bg-stone-50 border-stone-200'
+                }`}>
+                  <h2 className="font-bold text-base tracking-tight">
+                    {editingId ? 'Edit Expense Record' : 'Record Business Expense'}
+                  </h2>
+                  <button onClick={closeExpenseModal} className="text-zinc-400 hover:text-zinc-100">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+                      Expense Category *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      placeholder="e.g., Packaging, Raw Silk, Advertising"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none transition ${
+                        isDark ? 'bg-zinc-800 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+                      Amount (TND) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={form.amount || ''}
+                      onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
+                      placeholder="0.00"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold outline-none transition ${
+                        isDark ? 'bg-zinc-800 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+                      Expense Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={form.expense_date}
+                      onChange={(e) => setForm({ ...form, expense_date: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none transition ${
+                        isDark ? 'bg-zinc-800 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="e.g., 100x Luxury mailing boxes from supplier"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none transition ${
+                        isDark ? 'bg-zinc-800 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+                      Notes
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={form.notes}
+                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                      placeholder="Invoice reference, supplier phone..."
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm outline-none transition ${
+                        isDark ? 'bg-zinc-800 border-zinc-700 focus:border-rose-500 text-zinc-100' : 'bg-stone-50 border-stone-200 focus:border-rose-500 text-zinc-900'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-3">
+                    <button
+                      type="button"
+                      onClick={closeExpenseModal}
+                      className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                        isDark ? 'border-zinc-800 text-zinc-300 hover:bg-zinc-800' : 'border-stone-200 text-zinc-700 hover:bg-stone-100'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm font-semibold shadow-md shadow-rose-500/20 hover:opacity-95 transition disabled:opacity-50"
+                    >
+                      {saving ? 'Saving...' : editingId ? 'Update' : 'Save Expense'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </AdminLayout>
   );
 }

@@ -6,6 +6,8 @@ import CheckoutFlow from './CheckoutFlow'
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { formatPrice } from '../utils/formatters'
+import { ShoppingBag, Package, Trash2 } from 'lucide-react'
 
 export const CartDrawer: React.FC = () => {
   const { theme } = useTheme()
@@ -18,7 +20,8 @@ export const CartDrawer: React.FC = () => {
   const previousActiveRef = React.useRef<HTMLElement | null>(null)
   const { t } = useTranslation()
 
-  const subtotal = cartItems.reduce((sum, it) => sum + Number(it.product.price) * it.quantity, 0)
+  const getItemPrice = (it: any) => Number(it.unitPrice !== undefined ? it.unitPrice : it.product.price)
+  const subtotal = cartItems.reduce((sum, it) => sum + getItemPrice(it) * it.quantity, 0)
   const shipping = cartItems.length > 0 ? 8 : 0
   const total = subtotal + shipping
 
@@ -52,6 +55,16 @@ export const CartDrawer: React.FC = () => {
       e.preventDefault()
       first.focus()
     }
+  }
+
+  const handleCheckoutClick = () => {
+    if (cartItems.length === 0) return
+    if (!session) {
+      closeCart()
+      navigate('/login?redirect=/checkout')
+      return
+    }
+    setCheckoutOpen(true)
   }
 
   return (
@@ -106,8 +119,8 @@ export const CartDrawer: React.FC = () => {
                   animate={{ opacity: 1 }}
                   className="h-40 flex items-center justify-center"
                 >
-                  <div className="text-center">
-                    <div className="text-5xl mb-3">🛍️</div>
+                  <div className="text-center flex flex-col items-center">
+                    <ShoppingBag className="w-12 h-12 text-pl-pink/40 mb-3" />
                     <p className={`font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
                       {t('cart.empty')}
                     </p>
@@ -115,152 +128,135 @@ export const CartDrawer: React.FC = () => {
                 </motion.div>
               ) : (
                 <motion.div className="space-y-4">
-                  {cartItems.map((it, idx) => (
-                    <motion.div 
-                      key={`${it.product.id}-${it.selectedVariant || ''}`}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className={`p-4 rounded-xl border-2 smooth-transition flex gap-4 ${theme === 'dark' ? 'bg-zinc-800/30 border-zinc-700 hover:border-pl-pink/30' : 'bg-stone-50 border-stone-200 hover:border-pl-pink/30'}`}
-                    >
-                      {/* Product Image */}
-                      <div className={`h-20 w-20 rounded-lg flex items-center justify-center flex-shrink-0 text-3xl ${theme === 'dark' ? 'bg-zinc-700' : 'bg-white'}`}>
-                        ✨
-                      </div>
+                  {cartItems.map((it, idx) => {
+                    const itemImg = it.imageUrl || it.product.image_url
+                    const itemUnitPrice = getItemPrice(it)
 
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div>
-                          <h4 className={`font-stayvibes line-clamp-1 ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                            {it.product.name}
-                          </h4>
-                          {it.selectedVariant && (
-                            <p className={`text-xs font-century ${theme === 'dark' ? 'text-pl-white/50' : 'text-pl-black/50'}`}>
-                              {it.selectedVariant}
-                            </p>
+                    return (
+                      <motion.div 
+                        key={`${it.product.id}-${it.selectedVariant || ''}`}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className={`p-4 rounded-xl border-2 smooth-transition flex gap-4 ${theme === 'dark' ? 'bg-zinc-800/30 border-zinc-700 hover:border-pl-pink/30' : 'bg-stone-50 border-stone-200 hover:border-pl-pink/30'}`}
+                      >
+                        {/* Product Image */}
+                        <div className={`h-20 w-20 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 border border-black/10 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-white'}`}>
+                          {itemImg ? (
+                            <img src={itemImg} alt={it.product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="w-8 h-8 text-pl-pink/60" />
                           )}
                         </div>
 
-                        {/* Quantity Controls */}
-                        <div className="flex items-center gap-2 mt-2">
-                          <motion.button 
-                            onClick={() => updateQuantity(it.product.id, it.selectedVariant, -1)}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className={`px-2.5 py-1 rounded-lg text-sm font-semibold border smooth-transition ${theme === 'dark' ? 'bg-zinc-700 border-zinc-600 text-pl-white hover:border-pl-pink' : 'bg-white border-stone-200 text-pl-black hover:border-pl-pink'}`}
-                          >
-                            −
-                          </motion.button>
-                          <span className={`px-3 py-1 min-w-8 text-center font-century font-semibold ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                            {it.quantity}
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div>
+                            <h4 className={`font-stayvibes text-lg line-clamp-1 ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
+                              {it.product.name}
+                            </h4>
+                            {it.selectedVariant && (
+                              <p className={`text-xs font-century font-medium ${theme === 'dark' ? 'text-pl-pink' : 'text-pl-pink'}`}>
+                                {it.selectedVariant}
+                              </p>
+                            )}
+                            <p className={`text-xs font-century ${theme === 'dark' ? 'text-pl-white/50' : 'text-pl-black/50'}`}>
+                              {formatPrice(itemUnitPrice)} each
+                            </p>
+                          </div>
+
+                          {/* Quantity Controls */}
+                          <div className="flex items-center gap-2 mt-2">
+                            <motion.button 
+                              onClick={() => updateQuantity(it.product.id, it.selectedVariant, -1)}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className={`px-2.5 py-1 rounded-lg text-sm font-semibold border smooth-transition ${theme === 'dark' ? 'bg-zinc-700 border-zinc-600 text-pl-white hover:border-pl-pink' : 'bg-white border-stone-200 text-pl-black hover:border-pl-pink'}`}
+                            >
+                              −
+                            </motion.button>
+                            <span className={`px-3 py-1 min-w-8 text-center font-century font-semibold ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
+                              {it.quantity}
+                            </span>
+                            <motion.button 
+                              onClick={() => updateQuantity(it.product.id, it.selectedVariant, 1)}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className={`px-2.5 py-1 rounded-lg text-sm font-semibold border smooth-transition ${theme === 'dark' ? 'bg-zinc-700 border-zinc-600 text-pl-white hover:border-pl-pink' : 'bg-white border-stone-200 text-pl-black hover:border-pl-pink'}`}
+                            >
+                              +
+                            </motion.button>
+                          </div>
+                        </div>
+
+                        {/* Price & Remove */}
+                        <div className="flex flex-col items-end justify-between">
+                          <span className="text-base font-century font-bold text-pl-pink">
+                            {formatPrice(itemUnitPrice * it.quantity)}
                           </span>
                           <motion.button 
-                            onClick={() => updateQuantity(it.product.id, it.selectedVariant, 1)}
+                            onClick={() => removeItem(it.product.id, it.selectedVariant)}
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            className={`px-2.5 py-1 rounded-lg text-sm font-semibold border smooth-transition ${theme === 'dark' ? 'bg-zinc-700 border-zinc-600 text-pl-white hover:border-pl-pink' : 'bg-white border-stone-200 text-pl-black hover:border-pl-pink'}`}
+                            className="text-sm font-century text-zinc-400 hover:text-red-500 smooth-transition p-1 cursor-pointer"
+                            title="Remove item"
                           >
-                            +
+                            <Trash2 className="w-4 h-4" />
                           </motion.button>
                         </div>
-                      </div>
-
-                      {/* Price & Remove */}
-                      <div className="flex flex-col items-end justify-between">
-                        <span className="text-lg font-stayvibes text-pl-pink">
-                          {new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND', minimumFractionDigits: 0 }).format(Number(it.product.price) * it.quantity)}
-                        </span>
-                        <motion.button 
-                          onClick={() => removeItem(it.product.id, it.selectedVariant)}
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="text-sm font-century text-pl-pink hover:text-pl-red smooth-transition"
-                        >
-                          Remove
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    )
+                  })}
                 </motion.div>
               )}
             </div>
 
-            {/* Footer - Totals & Actions */}
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`border-t-2 border-pl-pink/20 pt-4 space-y-4`}
-            >
-              {/* Totals */}
-              <div className="space-y-2 pb-4 border-b border-pl-pink/20">
-                <div className={`flex justify-between text-sm font-century ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>
-                  <span>{t('cart.subtotal')}</span>
-                  <span className="font-semibold">
-                    {new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND', minimumFractionDigits: 0 }).format(subtotal)}
-                  </span>
+            {/* Footer Summary */}
+            {cartItems.length > 0 && (
+              <div className="border-t border-pl-pink/20 pt-4 space-y-3">
+                <div className="flex justify-between text-sm font-century">
+                  <span className={theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}>{t('cart.subtotal')}</span>
+                  <span className="font-semibold">{formatPrice(subtotal)}</span>
                 </div>
-                <div className={`flex justify-between text-sm font-century ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>
-                  <span>{t('cart.shipping')}</span>
-                  <span className="font-semibold">
-                    {new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND', minimumFractionDigits: 0 }).format(shipping)}
-                  </span>
+                <div className="flex justify-between text-sm font-century">
+                  <span className={theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}>{t('cart.shipping')}</span>
+                  <span className="font-semibold">{formatPrice(shipping)}</span>
                 </div>
-                <div className={`flex justify-between items-baseline text-lg font-semibold ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
+                <div className="flex justify-between text-lg font-century font-bold border-t border-pl-pink/10 pt-2 text-pl-pink">
                   <span>{t('cart.total')}</span>
-                  <span className="text-2xl font-stayvibes text-pl-pink">
-                    {new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND', minimumFractionDigits: 0 }).format(total)}
-                  </span>
+                  <span>{formatPrice(total)}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={clearCart}
+                    className={`py-3 px-4 rounded-xl font-century font-semibold text-xs border smooth-transition ${theme === 'dark' ? 'border-zinc-700 text-zinc-400 hover:bg-zinc-800' : 'border-stone-200 text-zinc-600 hover:bg-stone-100'}`}
+                  >
+                    {t('cart.clear')}
+                  </button>
+                  <button
+                    onClick={handleCheckoutClick}
+                    className="py-3 px-4 rounded-xl font-century font-semibold text-xs bg-gradient-to-r from-pl-pink to-pl-red text-white hover:opacity-95 shadow-md shadow-pl-pink/20 smooth-transition flex items-center justify-center gap-1.5"
+                  >
+                    <span>{t('cart.checkout')}</span>
+                  </button>
                 </div>
               </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <motion.button 
-                  onClick={() => closeCart()}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`flex-1 px-4 py-3 rounded-lg font-century font-semibold smooth-transition border-2 ${theme === 'dark' ? 'bg-zinc-800 text-pl-white border-zinc-700 hover:border-pl-pink' : 'bg-stone-100 text-pl-black border-stone-200 hover:border-pl-pink'}`}
-                >
-                  {t('cart.returnToShop')}
-                </motion.button>
-                <motion.button 
-                  onClick={() => {
-                    if (cartItems.length === 0) return
-                    // require login before opening checkout
-                    if (!session?.user) {
-                      // redirect to login and come back
-                      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)
-                      return
-                    }
-                    setCheckoutOpen(true)
-                  }}
-                  disabled={cartItems.length === 0}
-                  whileHover={cartItems.length > 0 ? { scale: 1.02 } : {}}
-                  whileTap={cartItems.length > 0 ? { scale: 0.98 } : {}}
-                  className={`flex-1 px-4 py-3 rounded-lg font-century font-semibold smooth-transition border-2 ${
-                    cartItems.length > 0
-                      ? 'bg-gradient-to-r from-pl-pink to-pl-red text-white border-pl-pink hover:shadow-lg hover:shadow-pl-pink/30'
-                      : `${theme === 'dark' ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-stone-100 text-stone-400 border-stone-200'} cursor-not-allowed`
-                  }`}
-                >
-                  {t('cart.checkout')}
-                </motion.button>
-              </div>
-            </motion.div>
+            )}
           </motion.div>
-
-          {checkoutOpen && (
-            <CheckoutFlow
-              cartItems={cartItems}
-              onClose={() => setCheckoutOpen(false)}
-              onSuccess={() => {
-                setCheckoutOpen(false)
-                closeCart()
-                clearCart()
-              }}
-            />
-          )}
         </motion.div>
+      )}
+
+      {checkoutOpen && (
+        <CheckoutFlow
+          cartItems={cartItems}
+          onClose={() => setCheckoutOpen(false)}
+          onSuccess={() => {
+            clearCart()
+            setCheckoutOpen(false)
+            closeCart()
+          }}
+        />
       )}
     </AnimatePresence>
   )

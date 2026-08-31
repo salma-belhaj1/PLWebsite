@@ -133,6 +133,42 @@ export const productService = {
       throw error;
     }
   },
+
+  createCategory: async (category: any) => {
+    try {
+      return await productsService.createCategory(category);
+    } catch (error) {
+      console.error('Error creating category:', error);
+      throw error;
+    }
+  },
+
+  updateCategory: async (id: number, updates: any) => {
+    try {
+      return await productsService.updateCategory(id, updates);
+    } catch (error) {
+      console.error('Error updating category:', error);
+      throw error;
+    }
+  },
+
+  deleteCategory: async (id: number) => {
+    try {
+      return await productsService.deleteCategory(id);
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      throw error;
+    }
+  },
+
+  saveProductVariants: async (productId: number, variants: any[]) => {
+    try {
+      return await productsService.saveProductVariants(productId, variants);
+    } catch (error) {
+      console.error('Error saving variants:', error);
+      throw error;
+    }
+  },
 };
 
 // ==========================================

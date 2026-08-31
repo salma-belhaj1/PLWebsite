@@ -4,23 +4,35 @@ import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { productService, Product } from '../services/api'
-import { useCart } from '../context/CartContext'
 import { useTheme } from '../context/ThemeContext'
 import { useTranslation } from 'react-i18next'
+import { Grid, Package, Tag, ArrowUpDown } from 'lucide-react'
+import ProductCard from '../components/ProductCard'
+import ProductQuickViewModal from '../components/ProductQuickViewModal'
+import LoadingScreen from '../components/LoadingScreen'
 
 export default function Shop() {
   const { t } = useTranslation()
   const { theme } = useTheme()
-  const { addToCart } = useCart()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [categories, setCategories] = useState<string[]>([])
   const location = useLocation()
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState<string>('featured')
   const [filterByStock, setFilterByStock] = useState<'all' | 'in-stock' | 'out-of-stock'>('all')
+  const [priceRange, setPriceRange] = useState<string>('all')
+  const [showInitialLoading, setShowInitialLoading] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowInitialLoading(false)
+    }, 1800)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -37,14 +49,31 @@ export default function Shop() {
         setProducts(products || [])
 
         // Extract category names (handling both string and object formats)
-        const categoryNames = products
+        const categoryNamesFromProducts = products
           .map((p) => {
             if (typeof p.category === 'string') return p.category
             if (p.category && typeof p.category === 'object' && 'name' in p.category) return (p.category as any).name
             return null
           })
           .filter(Boolean) as string[]
-        const cats = ['all', ...new Set(categoryNames)]
+
+        const allCatNames: string[] = [...categoryNamesFromProducts]
+        try {
+          const catRes = await productService.getCategories()
+          if (catRes && catRes.data) {
+            catRes.data.forEach((c: any) => {
+              if (c?.name) allCatNames.push(c.name)
+            })
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        // Deduplicate and sort alphabetically
+        const sortedAlphabeticalCategories = Array.from(new Set(allCatNames)).sort((a, b) =>
+          a.localeCompare(b, undefined, { sensitivity: 'base' })
+        )
+        const cats = ['all', ...sortedAlphabeticalCategories]
         setCategories(cats)
         setError(null)
       } catch (err) {
@@ -94,6 +123,14 @@ export default function Shop() {
       if (filterByStock === 'out-of-stock') return !isProductInStock(p)
       return true
     })
+    .filter(p => {
+      const price = Number(p.price || 0)
+      if (priceRange === 'under-20') return price < 20
+      if (priceRange === '20-50') return price >= 20 && price <= 50
+      if (priceRange === '50-100') return price >= 50 && price <= 100
+      if (priceRange === 'over-100') return price > 100
+      return true
+    })
     // Apply client-side sorting
     .sort((a, b) => {
       if (sortBy === 'priceLowHigh') return Number(a.price) - Number(b.price)
@@ -103,18 +140,40 @@ export default function Shop() {
       return 0
     })
 
+  if (showInitialLoading) {
+    return <LoadingScreen durationMs={1800} onComplete={() => setShowInitialLoading(false)} />
+  }
+
   return (
     <div className={`min-h-screen pt-28 lg:pt-32 ${theme === 'dark' ? 'dark bg-zinc-950' : 'bg-white'}`}>
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 py-12">
-        {/* Page Header */}
-        <div className="text-center mb-12 slide-in-up">
-          <h1 className={`text-6xl font-stayvibes mb-4 slide-in-up hover:scale-105 smooth-transition cursor-default ${theme === 'dark' ? 'text-pl-pink' : 'text-pl-pink'}`}>✨ {t('shopPage.title')} ✨</h1>
-          <p className={`text-lg font-century max-w-2xl mx-auto ${theme === 'dark' ? 'text-pl-white/70' : 'text-pl-black/70'}`}>
-            {t('shopPage.description')}
-          </p>
-          <div className="h-1.5 w-32 bg-gradient-to-r from-pl-pink to-pl-red mx-auto mt-6 rounded-full shadow-sm"></div>
+        {/* Page Header with Background Image */}
+        <div 
+          className="relative text-center mb-12 p-8 md:p-14 min-h-[220px] md:min-h-[250px] flex flex-col justify-center items-center rounded-3xl overflow-hidden shadow-xl border border-pl-pink/20 slide-in-up"
+        >
+          {/* Background Image across the whole picture */}
+          <img
+            src="/media/background.jpg"
+            alt="Peace & Love Background"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+
+          {/* Gentle overlay across the whole picture for clear image visibility and legibility */}
+          <div className={`absolute inset-0 transition-colors ${theme === 'dark' ? 'bg-black/45' : 'bg-white/40'}`}></div>
+
+          <div className="relative z-10 w-full">
+            <h1 className="text-4xl md:text-6xl font-stayvibes tracking-wider mb-1 slide-in-up hover:scale-105 smooth-transition cursor-default text-pl-pink drop-shadow-sm">
+              {t('shopPage.title')}
+            </h1>
+            <p className={`text-xs md:text-sm font-century font-semibold uppercase tracking-widest mb-3 drop-shadow-xs ${theme === 'dark' ? 'text-pl-white/90' : 'text-pl-black/80'}`}>
+              {t('shopPage.subtitle')}
+            </p>
+            <p className={`text-sm md:text-base font-century max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-xs ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black/90'}`}>
+              {t('shopPage.description')}
+            </p>
+          </div>
         </div>
 
         {/* Category Filter - Modern Horizontal Scroll */}
@@ -130,13 +189,14 @@ export default function Shop() {
                 onClick={() => setSelectedCategory(cat)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.98 }}
-                className={`px-6 py-2.5 rounded-full font-century smooth-transition capitalize text-sm tracking-wide border-2 font-medium
+                className={`px-6 py-2.5 rounded-full font-century smooth-transition capitalize text-sm tracking-wide border-2 font-medium flex items-center gap-2
                   ${selectedCategory === cat
                     ? `bg-gradient-to-r from-pl-pink to-pl-red text-white border-pl-pink shadow-lg shadow-pl-pink/30`
                     : `${theme === 'dark' ? 'bg-zinc-800/50 text-pl-white/80 border-zinc-700 hover:border-pl-pink hover:bg-pl-pink/10' : 'bg-stone-100 text-pl-black/70 border-stone-200 hover:border-pl-pink hover:bg-pl-pink/5'}`
                   }`}
                 style={{ animationDelay: `${idx * 30}ms` }}
               >
+                {cat === 'all' && <Grid className="w-4 h-4" />}
                 {cat === 'all' ? t('shopPage.filter.all') : `${cat} (${products.filter(p => getCategoryName(p.category) === cat).length})`}
               </motion.button>
             ))}
@@ -144,63 +204,80 @@ export default function Shop() {
         )}
 
         {/* Modern Filter Bar */}
-        <div className={`mb-8 p-4 rounded-2xl border-2 smooth-transition ${theme === 'dark' ? 'bg-zinc-800/30 border-zinc-700' : 'bg-stone-50 border-stone-200'}`}>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            {/* Stock Filters */}
-            <div className="flex items-center gap-4 flex-wrap">
-              <span className={`font-century text-sm font-semibold ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/60'}`}>
-                📦 {t('stock.inStock')}:
-              </span>
-              <div className="flex gap-2 flex-wrap">
-                {(['all', 'in-stock', 'out-of-stock'] as const).map((stock) => (
-                  <motion.button
-                    key={stock}
-                    onClick={() => setFilterByStock(stock)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-century font-medium smooth-transition border ${
-                      filterByStock === stock
-                        ? 'bg-pl-pink text-white border-pl-pink shadow-md shadow-pl-pink/30'
-                        : `${theme === 'dark' ? 'bg-zinc-700/50 text-pl-white/70 border-zinc-600 hover:border-pl-pink' : 'bg-white text-pl-black/60 border-stone-200 hover:border-pl-pink'}`
-                    }`}
-                  >
-                    {stock === 'all' && 'All'}
-                    {stock === 'in-stock' && t('stock.inStock')}
-                    {stock === 'out-of-stock' && t('stock.outOfStock')}
-                  </motion.button>
-                ))}
+        <div className={`mb-8 p-3 px-4 rounded-2xl border-2 smooth-transition ${theme === 'dark' ? 'bg-zinc-800/30 border-zinc-700' : 'bg-stone-50 border-stone-200'}`}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Availability Dropdown */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 ${
+                theme === 'dark' ? 'bg-zinc-700 border-zinc-600' : 'bg-white border-stone-200'
+              }`}>
+                <Package className="w-4 h-4 text-pl-pink shrink-0" />
+                <select
+                  id="availability-select"
+                  aria-label={t('filter.availability')}
+                  value={filterByStock}
+                  onChange={(e) => setFilterByStock(e.target.value as any)}
+                  className={`bg-transparent text-sm font-century font-medium focus:outline-none cursor-pointer ${
+                    theme === 'dark' ? 'text-pl-white' : 'text-pl-black'
+                  }`}
+                >
+                  <option value="all" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.allAvailability')}</option>
+                  <option value="in-stock" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.inStock')}</option>
+                  <option value="out-of-stock" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.outOfStock')}</option>
+                </select>
+              </div>
+
+              {/* Price Range Dropdown */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 ${
+                theme === 'dark' ? 'bg-zinc-700 border-zinc-600' : 'bg-white border-stone-200'
+              }`}>
+                <Tag className="w-4 h-4 text-pl-pink shrink-0" />
+                <select
+                  id="price-range-select"
+                  aria-label={t('filter.price')}
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  className={`bg-transparent text-sm font-century font-medium focus:outline-none cursor-pointer ${
+                    theme === 'dark' ? 'text-pl-white' : 'text-pl-black'
+                  }`}
+                >
+                  <option value="all" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.allPrices')}</option>
+                  <option value="under-20" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.under20')}</option>
+                  <option value="20-50" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.between20and50')}</option>
+                  <option value="50-100" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.between50and100')}</option>
+                  <option value="over-100" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('filter.over100')}</option>
+                </select>
               </div>
             </div>
 
-            {/* Sort */}
-            <div className="flex items-center gap-3">
-              <label htmlFor="sort-select" className={`font-century text-sm font-semibold ${theme === 'dark' ? 'text-pl-white/80' : 'text-pl-black/60'}`}>
-                🔄 {t('sort.by')}:
-              </label>
+            {/* Sort Dropdown */}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 ${
+              theme === 'dark' ? 'bg-zinc-700 border-zinc-600' : 'bg-white border-stone-200'
+            }`}>
+              <ArrowUpDown className="w-4 h-4 text-pl-pink shrink-0" />
               <select
                 id="sort-select"
+                aria-label={t('sort.by')}
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-century smooth-transition border-2 focus:outline-none focus:ring-2 focus:ring-pl-pink/30 ${
-                  theme === 'dark' 
-                    ? 'bg-zinc-700 border-zinc-600 text-pl-white focus:border-pl-pink' 
-                    : 'bg-white border-stone-200 text-pl-black focus:border-pl-pink'
+                className={`bg-transparent text-sm font-century font-medium focus:outline-none cursor-pointer ${
+                  theme === 'dark' ? 'text-pl-white' : 'text-pl-black'
                 }`}
               >
-                <option value="featured">{t('sort.featured')}</option>
-                <option value="priceLowHigh">{t('sort.priceLowHigh')}</option>
-                <option value="priceHighLow">{t('sort.priceHighLow')}</option>
-                <option value="rating">{t('sort.rating')}</option>
-                <option value="newest">{t('sort.newest')}</option>
+                <option value="featured" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('sort.featured')}</option>
+                <option value="priceLowHigh" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('sort.priceLowHigh')}</option>
+                <option value="priceHighLow" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('sort.priceHighLow')}</option>
+                <option value="rating" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('sort.rating')}</option>
+                <option value="newest" className={theme === 'dark' ? 'bg-zinc-800 text-pl-white' : 'bg-white text-pl-black'}>{t('sort.newest')}</option>
               </select>
             </div>
           </div>
 
           {/* Active Filters Display */}
-          {(selectedCategory !== 'all' || filterByStock !== 'all') && (
+          {(selectedCategory !== 'all' || filterByStock !== 'all' || priceRange !== 'all') && (
             <div className="mt-4 pt-4 border-t border-pl-pink/20 flex items-center gap-3 flex-wrap">
               <span className={`text-xs font-century font-semibold ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/50'}`}>
-                Active filters:
+                {t('shopPage.activeFilters')}
               </span>
               {selectedCategory !== 'all' && (
                 <motion.button
@@ -217,7 +294,19 @@ export default function Shop() {
                   whileHover={{ scale: 1.05 }}
                   className={`px-3 py-1 rounded-lg text-xs font-century border-2 smooth-transition ${theme === 'dark' ? 'bg-pl-pink/20 border-pl-pink text-pl-pink' : 'bg-pl-pink/10 border-pl-pink text-pl-pink'}`}
                 >
-                  {filterByStock === 'in-stock' ? t('stock.inStock') : t('stock.outOfStock')} ✕
+                  {filterByStock === 'in-stock' ? t('filter.inStock') : t('filter.outOfStock')} ✕
+                </motion.button>
+              )}
+              {priceRange !== 'all' && (
+                <motion.button
+                  onClick={() => setPriceRange('all')}
+                  whileHover={{ scale: 1.05 }}
+                  className={`px-3 py-1 rounded-lg text-xs font-century border-2 smooth-transition ${theme === 'dark' ? 'bg-pl-pink/20 border-pl-pink text-pl-pink' : 'bg-pl-pink/10 border-pl-pink text-pl-pink'}`}
+                >
+                  {priceRange === 'under-20' && t('filter.under20')}
+                  {priceRange === '20-50' && t('filter.between20and50')}
+                  {priceRange === '50-100' && t('filter.between50and100')}
+                  {priceRange === 'over-100' && t('filter.over100')} ✕
                 </motion.button>
               )}
             </div>
@@ -236,7 +325,12 @@ export default function Shop() {
 
         {/* Results Count */}
         <div className={`mb-6 text-sm font-century ${theme === 'dark' ? 'text-pl-white/60' : 'text-pl-black/60'}`}>
-          {!loading && <p>{filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} found</p>}
+          {!loading && (
+            <p>
+              {filteredProducts.length}{' '}
+              {filteredProducts.length === 1 ? t('shopPage.productFound') : t('shopPage.productsFound')}
+            </p>
+          )}
         </div>
 
         {loading ? (
@@ -285,90 +379,22 @@ export default function Shop() {
             animate={{ opacity: 1 }}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
           >
-            {filteredProducts.map((product, idx) => {
-              const stock = getProductStock(product)
-              const inStock = isProductInStock(product)
-
-              return (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  whileHover={{ y: -8 }}
-                  className={`group rounded-2xl border-2 overflow-hidden h-96 flex flex-col smooth-transition shadow-lg hover:shadow-2xl ${
-                    theme === 'dark' 
-                      ? 'bg-zinc-800 border-zinc-700 hover:border-pl-pink/50' 
-                      : 'bg-white border-stone-100 hover:border-pl-pink/50'
-                  }`}
-                >
-                  {/* Image Container */}
-                  <div className={`relative h-44 flex items-center justify-center overflow-hidden group/image ${theme === 'dark' ? 'bg-gradient-to-br from-pl-pink/10 to-zinc-900' : 'bg-gradient-to-br from-pl-pink/10 to-white'}`}>
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_50%_50%,var(--pl-pink)_0%,transparent_50%)] smooth-transition group-hover:scale-150"></div>
-                    <div className="text-6xl drop-shadow-md group-hover/image:scale-110 group-hover/image:rotate-[8deg] smooth-transition relative z-10">✨</div>
-
-                    {/* Category Badge */}
-                    <div className={`absolute top-3 right-3 backdrop-blur-md px-3 py-1 rounded-full text-xs font-century font-semibold tracking-wide border-2 shadow-md z-20 capitalize ${
-                      theme === 'dark'
-                        ? 'bg-zinc-900/80 text-pl-pink border-pl-pink/50'
-                        : 'bg-white/80 text-pl-pink border-pl-pink/50'
-                    }`}>
-                      {getCategoryName(product.category)}
-                    </div>
-
-                    {/* Stock Badge */}
-                    <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-century font-semibold z-20 border-2 ${
-                      inStock
-                        ? theme === 'dark'
-                          ? 'bg-green-900/80 text-green-200 border-green-500/50'
-                          : 'bg-green-100 text-green-800 border-green-200'
-                        : theme === 'dark'
-                          ? 'bg-red-900/80 text-red-200 border-red-500/50'
-                          : 'bg-red-100 text-red-700 border-red-200'
-                    }`}>
-                      {inStock ? `${t('stock.inStock')}${stock > 0 ? ` • ${stock}` : ''}` : t('stock.outOfStock')}
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className={`p-4 flex-1 flex flex-col ${theme === 'dark' ? 'bg-gradient-to-b from-zinc-800 to-zinc-900' : 'bg-gradient-to-b from-white to-pl-pink/[0.02]'}`}>
-                    {/* Title */}
-                    <h3 className={`text-lg font-stayvibes line-clamp-2 group-hover:text-pl-pink smooth-transition ${theme === 'dark' ? 'text-pl-white' : 'text-pl-black'}`}>
-                      {product.name}
-                    </h3>
-
-                    {/* Description */}
-                    <p className={`text-xs line-clamp-2 mt-2 flex-grow leading-relaxed font-century ${theme === 'dark' ? 'text-pl-white/50' : 'text-pl-black/50'}`}>
-                      {product.description}
-                    </p>
-
-                    {/* Footer - Price & Button */}
-                    <div className={`flex items-center justify-between mt-auto pt-3 border-t ${theme === 'dark' ? 'border-zinc-700' : 'border-stone-100'}`}>
-                      <span className="text-xl font-stayvibes text-pl-pink font-semibold">
-                        {new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND', minimumFractionDigits: 0 }).format(Number(product.price))}
-                      </span>
-                      <motion.button
-                        onClick={() => inStock && addToCart(product, undefined, 1)}
-                        disabled={!inStock}
-                        whileHover={inStock ? { scale: 1.1 } : {}}
-                        whileTap={inStock ? { scale: 0.95 } : {}}
-                        className={`px-4 py-2 rounded-lg smooth-transition font-century font-semibold text-sm flex items-center gap-1 border-2 ${
-                          inStock
-                            ? 'bg-gradient-to-r from-pl-pink to-pl-red text-white border-pl-pink hover:shadow-lg hover:shadow-pl-pink/30 cursor-pointer'
-                            : `${theme === 'dark' ? 'bg-zinc-700 text-zinc-400 border-zinc-600' : 'bg-stone-100 text-stone-400 border-stone-200'} cursor-not-allowed`
-                        }`}
-                        title={!inStock ? t('stock.outOfStock') : ''}
-                      >
-                        {!inStock ? '✕' : '🛍️'}
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onOpenQuickView={(p) => setQuickViewProduct(p)}
+              />
+            ))}
           </motion.div>
         )}
       </main>
+
+      {/* Product Quick View Modal */}
+      <ProductQuickViewModal
+        product={quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+      />
 
       <Footer />
     </div>
